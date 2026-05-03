@@ -1,0 +1,4 @@
+agent_45d39689312d7754878fcee6d4
+apiretell-key_99bb20438e210cb7ef8db6ea17ac
+internal sql -postgresql://universal_hospitals_user:gkp5IeWJcThyMOavMiTHd4RuJwouL7X0@dpg-d7r1dp9kh4rs73eir060-a/universal_hospitals
+mongo _ mongodb+srv://hospitaladmin:hospital@2024@cluster0.wmvnlit.mongodb.net/?appName=Cluster0

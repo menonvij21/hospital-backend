@@ -1,0 +1,361 @@
+{
+  "hospital": {
+    "name": "Universal Hospitals Abu Dhabi",
+    "website": "https://universalhospitals.com",
+    "last_scraped": "2026-05-02T22:25:59.193350"
+  },
+  "doctors": [
+    {
+      "Title": "Rheumatology",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Rheumatology.png",
+      "col_URL": "https://universalhospitals.com/speciality/rheumatology/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "Orthopedic Surgery & Sports Medicine",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Orthopedic-surgery-sports-medicine.png",
+      "col_URL": "https://universalhospitals.com/speciality/orthopaedic-surgery-sports-medicine-2/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "General & Laparoscopic Surgery",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/General-laparoscopic-surgery.png",
+      "col_URL": "https://universalhospitals.com/speciality/general-laparoscopic-surgery/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "Urology",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Urology.png",
+      "col_URL": "https://universalhospitals.com/speciality/urology/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "Dietetics",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Dietetics.png",
+      "col_URL": "https://universalhospitals.com/speciality/dietetics/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "24 - Hours Laboratory",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/24x7-lab.png",
+      "col_URL": "https://universalhospitals.com/speciality/24-hours-laboratory/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "24-Hours Pharmacy",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/24-Hours-Pharmacy.png",
+      "col_URL": "https://universalhospitals.com/speciality/24-hours-pharmacy/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "Radiology",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Radiology.png",
+      "col_URL": "https://universalhospitals.com/speciality/24-hour-radiology/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "24-Hour Emergency",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/24x7-emergency.png",
+      "col_URL": "https://universalhospitals.com/speciality/24-hour-emergency/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "Intensive Care Unit",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/icu.png",
+      "col_URL": "https://universalhospitals.com/speciality/intensive-care-unit/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "Anaesthesiology",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Anaesthesiology.png",
+      "col_URL": "https://universalhospitals.com/speciality/anaesthesiology/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "Cardiology",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Cardiology.png",
+      "col_URL": "https://universalhospitals.com/speciality/cardiology/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "Cardiothoracic & Vascular Surgery",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Cardiothoracic-vascular-surgery.png",
+      "col_URL": "https://universalhospitals.com/speciality/cardiothoracic-vascular-surgery/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "Dentistry - Implantology & Aesthetic Dentistry",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Dentistery.png",
+      "col_URL": "https://universalhospitals.com/speciality/dentistery-implantology-aesthetic-dentistry/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "Dermatology & Cosmetology",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Dermatology-cosmetology.png",
+      "col_URL": "https://universalhospitals.com/speciality/dermatology-cosmetology/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "Ear, Nose, & Throat",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Ear-nose-throat.png",
+      "col_URL": "https://universalhospitals.com/speciality/ear-nose-throat/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "Gastroenterology",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Gastroenterology.png",
+      "col_URL": "https://universalhospitals.com/speciality/gastroenterology/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "Gastrointestinal Surgery & Obesity Surgery",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Gastrointestinal-surgery.png",
+      "col_URL": "https://universalhospitals.com/speciality/gastrointestinal-surgery-obesity-surgery/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "General Medicine",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/General-medicine.png",
+      "col_URL": "https://universalhospitals.com/speciality/general-medicine/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "Internal Medicine",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Internal-medicine.png",
+      "col_URL": "https://universalhospitals.com/speciality/internal-medicine/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "Interventional Radiology",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Interventional-radiology.png",
+      "col_URL": "https://universalhospitals.com/speciality/interventional-radiology/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "Neonatology",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Neonatology.png",
+      "col_URL": "https://universalhospitals.com/speciality/neonatology/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "Nephrology",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Nephrology.png",
+      "col_URL": "https://universalhospitals.com/speciality/nephrology/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "Neurology",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Neurology.png",
+      "col_URL": "https://universalhospitals.com/speciality/neurology/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "Neurosurgery",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Neurosurgery.png",
+      "col_URL": "https://universalhospitals.com/speciality/neurosurgery/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "Obstetrics & Gynecology",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Obstetrics-gynaecology.png",
+      "col_URL": "https://universalhospitals.com/speciality/obstetrics-gynaecology/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "Opthalmology",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Ophthalmology.png",
+      "col_URL": "https://universalhospitals.com/speciality/opthalmology/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "Paediatrics",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Paediatrics.png",
+      "col_URL": "https://universalhospitals.com/speciality/paediatrics/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "Paediatric Surgery",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Paediatric-surgery.png",
+      "col_URL": "https://universalhospitals.com/speciality/paediatric-surgery/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "Physical Medical & Rehabilitation",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Physical-medical-rehabilitation.png",
+      "col_URL": "https://universalhospitals.com/speciality/physical-medicine-rehabilitation/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "Plastic & Reconstructive Surgery",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Plastic-reconstructive-surgery.png",
+      "col_URL": "https://universalhospitals.com/speciality/plastic-reconstructive-surgery/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "Psychiatry & Psychology",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Psychiatry-psychology.png",
+      "col_URL": "https://universalhospitals.com/speciality/psychiatry-psychology/",
+      "Field1_text": "Doctors"
+    },
+    {
+      "Title": "Pulmonary & Sleep Medicine",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Pulmonary-sleep-medicine.png",
+      "col_URL": "https://universalhospitals.com/speciality/pulmonary-sleep-medicine/",
+      "Field1_text": "Doctors"
+    }
+  ],
+  "departments": [
+    {
+      "Title": "Cardiology",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Cardiology.png",
+      "col_URL": "https://universalhospitals.com/speciality/cardiology/",
+      "Field1_text": "Home"
+    },
+    {
+      "Title": "Cardiology",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Cardiology.png",
+      "col_URL": "https://universalhospitals.com/speciality/cardiology/",
+      "Field1_text": "Who We Are"
+    },
+    {
+      "Title": "Cardiology",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Cardiology.png",
+      "col_URL": "https://universalhospitals.com/speciality/cardiology/",
+      "Field1_text": "Hospitals"
+    },
+    {
+      "Title": "Cardiology",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Cardiology.png",
+      "col_URL": "https://universalhospitals.com/speciality/cardiology/",
+      "Field1_text": "Speciality"
+    },
+    {
+      "Title": "Cardiology",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Cardiology.png",
+      "col_URL": "https://universalhospitals.com/speciality/cardiology/",
+      "Field1_text": "Information"
+    },
+    {
+      "Title": "Cardiology",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Cardiology.png",
+      "col_URL": "https://universalhospitals.com/speciality/cardiology/",
+      "Field1_text": "Contact Us"
+    }
+  ],
+  "services": [
+    {
+      "Title": "24 - Hours Laboratory",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/24x7-lab.png",
+      "col_URL": "https://universalhospitals.com/speciality/24-hours-laboratory/",
+      "Field1_text": "Home"
+    },
+    {
+      "Title": "24 - Hours Laboratory",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/24x7-lab.png",
+      "col_URL": "https://universalhospitals.com/speciality/24-hours-laboratory/",
+      "Field1_text": "Who We Are"
+    },
+    {
+      "Title": "24 - Hours Laboratory",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/24x7-lab.png",
+      "col_URL": "https://universalhospitals.com/speciality/24-hours-laboratory/",
+      "Field1_text": "Hospitals"
+    },
+    {
+      "Title": "24 - Hours Laboratory",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/24x7-lab.png",
+      "col_URL": "https://universalhospitals.com/speciality/24-hours-laboratory/",
+      "Field1_text": "Speciality"
+    },
+    {
+      "Title": "24 - Hours Laboratory",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/24x7-lab.png",
+      "col_URL": "https://universalhospitals.com/speciality/24-hours-laboratory/",
+      "Field1_text": "Information"
+    },
+    {
+      "Title": "24 - Hours Laboratory",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/24x7-lab.png",
+      "col_URL": "https://universalhospitals.com/speciality/24-hours-laboratory/",
+      "Field1_text": "Contact Us"
+    },
+    {
+      "Title": "24-Hours Pharmacy",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/24-Hours-Pharmacy.png",
+      "col_URL": "https://universalhospitals.com/speciality/24-hours-pharmacy/",
+      "Field1_text": "Home"
+    },
+    {
+      "Title": "24-Hours Pharmacy",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/24-Hours-Pharmacy.png",
+      "col_URL": "https://universalhospitals.com/speciality/24-hours-pharmacy/",
+      "Field1_text": "Who We Are"
+    },
+    {
+      "Title": "24-Hours Pharmacy",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/24-Hours-Pharmacy.png",
+      "col_URL": "https://universalhospitals.com/speciality/24-hours-pharmacy/",
+      "Field1_text": "Hospitals"
+    },
+    {
+      "Title": "24-Hours Pharmacy",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/24-Hours-Pharmacy.png",
+      "col_URL": "https://universalhospitals.com/speciality/24-hours-pharmacy/",
+      "Field1_text": "Speciality"
+    },
+    {
+      "Title": "24-Hours Pharmacy",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/24-Hours-Pharmacy.png",
+      "col_URL": "https://universalhospitals.com/speciality/24-hours-pharmacy/",
+      "Field1_text": "Information"
+    },
+    {
+      "Title": "24-Hours Pharmacy",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/24-Hours-Pharmacy.png",
+      "col_URL": "https://universalhospitals.com/speciality/24-hours-pharmacy/",
+      "Field1_text": "Contact Us"
+    },
+    {
+      "Title": "24-Hour Emergency",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/24x7-emergency.png",
+      "col_URL": "https://universalhospitals.com/speciality/24-hour-emergency/",
+      "Field1_text": "Home"
+    },
+    {
+      "Title": "24-Hour Emergency",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/24x7-emergency.png",
+      "col_URL": "https://universalhospitals.com/speciality/24-hour-emergency/",
+      "Field1_text": "Who We Are"
+    },
+    {
+      "Title": "24-Hour Emergency",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/24x7-emergency.png",
+      "col_URL": "https://universalhospitals.com/speciality/24-hour-emergency/",
+      "Field1_text": "Hospitals"
+    },
+    {
+      "Title": "24-Hour Emergency",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/24x7-emergency.png",
+      "col_URL": "https://universalhospitals.com/speciality/24-hour-emergency/",
+      "Field1_text": "Speciality"
+    },
+    {
+      "Title": "24-Hour Emergency",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/24x7-emergency.png",
+      "col_URL": "https://universalhospitals.com/speciality/24-hour-emergency/",
+      "Field1_text": "Information"
+    },
+    {
+      "Title": "24-Hour Emergency",
+      "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/24x7-emergency.png",
+      "col_URL": "https://universalhospitals.com/speciality/24-hour-emergency/",
+      "Field1_text": "Contact Us"
+    }
+  ],
+  "contact": {
+    "Title": "Pulmonary & Sleep Medicine",
+    "Image": "https://universalhospitals.com/wp-content/uploads/2018/06/Pulmonary-sleep-medicine.png",
+    "col_URL": "https://universalhospitals.com/speciality/pulmonary-sleep-medicine/",
+    "Field1_text": "Contact Us"
+  }
+}

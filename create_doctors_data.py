@@ -1,0 +1,857 @@
+import json
+
+hospital_data = {
+    "hospital_info": {
+        "name": "Universal Hospital",
+        "location": "Abu Dhabi, UAE",
+        "phone": "+971-2-634-4444",
+        "email": "info@universalhospitals.com",
+        "website": "https://universalhospitals.com",
+        "emergency": "800-UNIVERSAL",
+        "working_hours": "24/7 Emergency | OPD: 8AM - 8PM"
+    },
+    "specialties": [
+        {
+            "name": "Rheumatology",
+            "description": "Deals with Rheumatic Diseases and Musculoskeletal Disorders such as Osteoarthritis, Osteoporosis, back pain, Rheumatoid Arthritis, Lupus, and more.",
+            "doctors": [
+                {
+                    "name": "Dr. Ahmed Al Mansouri",
+                    "designation": "Consultant Rheumatologist",
+                    "qualification": "MD, MRCP (UK), Fellowship in Rheumatology",
+                    "experience": "15 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "Sun-Thu: 9AM-5PM",
+                    "expertise": ["Rheumatoid Arthritis", "Lupus", "Osteoporosis", "Gout"]
+                },
+                {
+                    "name": "Dr. Sarah Johnson",
+                    "designation": "Specialist Rheumatologist",
+                    "qualification": "MBBS, MD Rheumatology",
+                    "experience": "10 years",
+                    "languages": ["English", "French"],
+                    "availability": "Mon-Fri: 10AM-6PM",
+                    "expertise": ["Ankylosing Spondylitis", "Psoriatic Arthritis", "Fibromyalgia"]
+                }
+            ]
+        },
+        {
+            "name": "Cardiology",
+            "description": "Comprehensive cardiac care including diagnosis and treatment of heart diseases, interventional cardiology, and cardiac rehabilitation.",
+            "doctors": [
+                {
+                    "name": "Dr. Mohammed Al Rashidi",
+                    "designation": "Senior Consultant Cardiologist",
+                    "qualification": "MD, FACC, Fellowship Interventional Cardiology",
+                    "experience": "20 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "Sun-Thu: 8AM-4PM",
+                    "expertise": ["Interventional Cardiology", "Heart Failure", "Coronary Artery Disease", "Echocardiography"]
+                },
+                {
+                    "name": "Dr. Priya Sharma",
+                    "designation": "Consultant Cardiologist",
+                    "qualification": "MBBS, MD, DM Cardiology",
+                    "experience": "12 years",
+                    "languages": ["English", "Hindi", "Malayalam"],
+                    "availability": "Mon-Sat: 9AM-5PM",
+                    "expertise": ["Preventive Cardiology", "Hypertension", "Arrhythmia", "Cardiac Imaging"]
+                },
+                {
+                    "name": "Dr. James Williams",
+                    "designation": "Specialist Cardiologist",
+                    "qualification": "MBBS, MRCP, Fellowship Cardiology",
+                    "experience": "8 years",
+                    "languages": ["English"],
+                    "availability": "Tue-Sat: 10AM-6PM",
+                    "expertise": ["Heart Failure", "Pacemaker Implantation", "Stress Testing"]
+                }
+            ]
+        },
+        {
+            "name": "Orthopedic Surgery & Sports Medicine",
+            "description": "Specialized care for bone, joint, muscle and sports injuries including joint replacement, spine surgery and sports rehabilitation.",
+            "doctors": [
+                {
+                    "name": "Dr. Khalid Al Zaabi",
+                    "designation": "Senior Consultant Orthopedic Surgeon",
+                    "qualification": "MD, FRCS (Orthopedics), Fellowship Joint Replacement",
+                    "experience": "18 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "Sun-Thu: 8AM-4PM",
+                    "expertise": ["Joint Replacement", "Knee Surgery", "Hip Surgery", "Spine Surgery"]
+                },
+                {
+                    "name": "Dr. David Chen",
+                    "designation": "Consultant Sports Medicine Specialist",
+                    "qualification": "MBBS, MS Orthopedics, Fellowship Sports Medicine",
+                    "experience": "11 years",
+                    "languages": ["English", "Mandarin"],
+                    "availability": "Mon-Fri: 9AM-5PM",
+                    "expertise": ["Sports Injuries", "ACL Repair", "Shoulder Surgery", "Arthroscopy"]
+                }
+            ]
+        },
+        {
+            "name": "General & Laparoscopic Surgery",
+            "description": "Advanced surgical care including minimally invasive laparoscopic procedures for abdominal and digestive conditions.",
+            "doctors": [
+                {
+                    "name": "Dr. Rajan Patel",
+                    "designation": "Senior Consultant General Surgeon",
+                    "qualification": "MBBS, MS Surgery, Fellowship Laparoscopic Surgery",
+                    "experience": "16 years",
+                    "languages": ["English", "Hindi", "Gujarati"],
+                    "availability": "Sun-Thu: 9AM-5PM",
+                    "expertise": ["Laparoscopic Surgery", "Hernia Repair", "Appendectomy", "Gallbladder Surgery"]
+                },
+                {
+                    "name": "Dr. Fatima Al Hashimi",
+                    "designation": "Consultant General Surgeon",
+                    "qualification": "MD, FRCS General Surgery",
+                    "experience": "9 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "Mon-Sat: 10AM-6PM",
+                    "expertise": ["Thyroid Surgery", "Breast Surgery", "Colorectal Surgery"]
+                }
+            ]
+        },
+        {
+            "name": "Urology",
+            "description": "Comprehensive urological care including treatment of kidney stones, prostate conditions, bladder disorders and urological cancers.",
+            "doctors": [
+                {
+                    "name": "Dr. Hassan Al Nuaimi",
+                    "designation": "Senior Consultant Urologist",
+                    "qualification": "MD, FRCS Urology, Fellowship Endourology",
+                    "experience": "14 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "Sun-Thu: 8AM-4PM",
+                    "expertise": ["Kidney Stones", "Prostate Surgery", "Bladder Cancer", "Robotic Urology"]
+                },
+                {
+                    "name": "Dr. Anil Kumar",
+                    "designation": "Specialist Urologist",
+                    "qualification": "MBBS, MS, MCh Urology",
+                    "experience": "10 years",
+                    "languages": ["English", "Hindi", "Tamil"],
+                    "availability": "Mon-Fri: 9AM-5PM",
+                    "expertise": ["Laparoscopic Urology", "Male Infertility", "Urinary Incontinence"]
+                }
+            ]
+        },
+        {
+            "name": "Dietetics",
+            "description": "Professional dietary counseling and nutrition management for various health conditions including diabetes, obesity and heart disease.",
+            "doctors": [
+                {
+                    "name": "Ms. Nour Al Khalidi",
+                    "designation": "Senior Clinical Dietitian",
+                    "qualification": "BSc, MSc Clinical Nutrition, Registered Dietitian",
+                    "experience": "10 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "Sun-Thu: 9AM-5PM",
+                    "expertise": ["Diabetes Nutrition", "Weight Management", "Renal Diet", "Pediatric Nutrition"]
+                },
+                {
+                    "name": "Ms. Angela Fernandez",
+                    "designation": "Clinical Dietitian",
+                    "qualification": "BSc Nutrition, MSc Dietetics",
+                    "experience": "7 years",
+                    "languages": ["English", "Spanish", "Tagalog"],
+                    "availability": "Mon-Sat: 10AM-6PM",
+                    "expertise": ["Sports Nutrition", "Cardiac Diet", "Eating Disorders", "Oncology Nutrition"]
+                }
+            ]
+        },
+        {
+            "name": "24-Hours Laboratory",
+            "description": "State-of-the-art diagnostic laboratory providing comprehensive tests including blood work, microbiology, pathology and molecular diagnostics round the clock.",
+            "doctors": [
+                {
+                    "name": "Dr. Samira Al Ameri",
+                    "designation": "Consultant Pathologist & Lab Director",
+                    "qualification": "MD, PhD Pathology, FCAP",
+                    "experience": "15 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "24/7 On Call",
+                    "expertise": ["Clinical Pathology", "Hematology", "Microbiology", "Molecular Diagnostics"]
+                },
+                {
+                    "name": "Dr. Thomas George",
+                    "designation": "Specialist Clinical Pathologist",
+                    "qualification": "MBBS, MD Pathology",
+                    "experience": "9 years",
+                    "languages": ["English", "Malayalam"],
+                    "availability": "24/7 On Call",
+                    "expertise": ["Histopathology", "Cytology", "Immunology", "Biochemistry"]
+                }
+            ]
+        },
+        {
+            "name": "24-Hours Pharmacy",
+            "description": "Round-the-clock pharmacy services providing medications, patient counseling and medication management.",
+            "doctors": [
+                {
+                    "name": "Mr. Omar Al Shehhi",
+                    "designation": "Chief Pharmacist",
+                    "qualification": "PharmD, RPh",
+                    "experience": "12 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "24/7",
+                    "expertise": ["Clinical Pharmacy", "Drug Interaction", "Oncology Pharmacy", "IV Compounding"]
+                },
+                {
+                    "name": "Ms. Reena Mathew",
+                    "designation": "Senior Pharmacist",
+                    "qualification": "B.Pharm, M.Pharm",
+                    "experience": "8 years",
+                    "languages": ["English", "Malayalam", "Hindi"],
+                    "availability": "24/7 Rotating Shifts",
+                    "expertise": ["Medication Counseling", "Pediatric Pharmacy", "Anticoagulation Management"]
+                }
+            ]
+        },
+        {
+            "name": "Radiology",
+            "description": "Advanced imaging services including X-ray, CT scan, MRI, Ultrasound and Nuclear Medicine available 24 hours.",
+            "doctors": [
+                {
+                    "name": "Dr. Waleed Al Mazrouei",
+                    "designation": "Senior Consultant Radiologist",
+                    "qualification": "MD, FRCR, Fellowship Neuroradiology",
+                    "experience": "17 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "24/7 On Call",
+                    "expertise": ["CT Scan", "MRI", "Neuroradiology", "Musculoskeletal Radiology"]
+                },
+                {
+                    "name": "Dr. Meena Pillai",
+                    "designation": "Consultant Radiologist",
+                    "qualification": "MBBS, MD Radiology, FRCR",
+                    "experience": "11 years",
+                    "languages": ["English", "Malayalam", "Tamil"],
+                    "availability": "24/7 On Call",
+                    "expertise": ["Mammography", "Ultrasound", "PET Scan", "Breast Imaging"]
+                }
+            ]
+        },
+        {
+            "name": "24-Hour Emergency",
+            "description": "Round-the-clock emergency medical care with experienced emergency physicians, trauma specialists and fully equipped resuscitation facilities.",
+            "doctors": [
+                {
+                    "name": "Dr. Saeed Al Mansoori",
+                    "designation": "Head of Emergency Medicine",
+                    "qualification": "MD, FCEM, Fellowship Emergency Medicine",
+                    "experience": "16 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "24/7 Rotating",
+                    "expertise": ["Trauma Care", "Resuscitation", "Acute Medicine", "Toxicology"]
+                },
+                {
+                    "name": "Dr. Elena Petrov",
+                    "designation": "Senior Emergency Physician",
+                    "qualification": "MD, Emergency Medicine Specialist",
+                    "experience": "12 years",
+                    "languages": ["English", "Russian"],
+                    "availability": "24/7 Rotating",
+                    "expertise": ["Pediatric Emergency", "Cardiac Emergency", "Stroke Management"]
+                },
+                {
+                    "name": "Dr. Raj Mohan",
+                    "designation": "Emergency Medicine Specialist",
+                    "qualification": "MBBS, MD Emergency Medicine",
+                    "experience": "8 years",
+                    "languages": ["English", "Hindi", "Tamil"],
+                    "availability": "24/7 Rotating",
+                    "expertise": ["Critical Care", "Wound Management", "Fracture Management"]
+                }
+            ]
+        },
+        {
+            "name": "Intensive Care Unit",
+            "description": "Advanced ICU providing critical care for seriously ill patients with 24/7 intensivist coverage and state-of-the-art monitoring.",
+            "doctors": [
+                {
+                    "name": "Dr. Abdulla Al Kaabi",
+                    "designation": "Senior Consultant Intensivist",
+                    "qualification": "MD, EDIC, Fellowship Critical Care Medicine",
+                    "experience": "18 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "24/7 On Call",
+                    "expertise": ["Mechanical Ventilation", "Sepsis Management", "Multi-organ Failure", "ECMO"]
+                },
+                {
+                    "name": "Dr. Sunita Verma",
+                    "designation": "Consultant Intensivist",
+                    "qualification": "MBBS, MD, Fellowship Critical Care",
+                    "experience": "10 years",
+                    "languages": ["English", "Hindi"],
+                    "availability": "24/7 Rotating",
+                    "expertise": ["Post-operative ICU Care", "Neurological ICU", "Cardiac ICU"]
+                }
+            ]
+        },
+        {
+            "name": "Anaesthesiology",
+            "description": "Expert anesthesia care for surgical procedures including general, regional and local anesthesia with pain management services.",
+            "doctors": [
+                {
+                    "name": "Dr. Hamdan Al Dhaheri",
+                    "designation": "Senior Consultant Anaesthesiologist",
+                    "qualification": "MD, FRCA, Fellowship Pain Management",
+                    "experience": "19 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "24/7 On Call",
+                    "expertise": ["General Anaesthesia", "Regional Blocks", "Pain Management", "Obstetric Anaesthesia"]
+                },
+                {
+                    "name": "Dr. Mary Thomas",
+                    "designation": "Consultant Anaesthesiologist",
+                    "qualification": "MBBS, MD Anaesthesiology",
+                    "experience": "11 years",
+                    "languages": ["English", "Malayalam"],
+                    "availability": "24/7 Rotating",
+                    "expertise": ["Cardiac Anaesthesia", "Paediatric Anaesthesia", "ICU Pain Management"]
+                }
+            ]
+        },
+        {
+            "name": "Cardiothoracic & Vascular Surgery",
+            "description": "Advanced surgical treatment for heart, lung and blood vessel conditions including bypass surgery, valve replacement and aortic surgery.",
+            "doctors": [
+                {
+                    "name": "Dr. Tariq Al Suwaidi",
+                    "designation": "Senior Consultant Cardiothoracic Surgeon",
+                    "qualification": "MD, FRCS Cardiothoracic, Fellowship Cardiac Surgery",
+                    "experience": "22 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "Sun-Thu: 8AM-4PM",
+                    "expertise": ["Bypass Surgery", "Valve Replacement", "Aortic Surgery", "Lung Surgery"]
+                },
+                {
+                    "name": "Dr. Viktor Petersen",
+                    "designation": "Consultant Vascular Surgeon",
+                    "qualification": "MD, FRCS Vascular Surgery",
+                    "experience": "13 years",
+                    "languages": ["English", "German"],
+                    "availability": "Mon-Fri: 9AM-5PM",
+                    "expertise": ["Aneurysm Repair", "Carotid Surgery", "Peripheral Vascular Disease", "Varicose Veins"]
+                }
+            ]
+        },
+        {
+            "name": "Dentistry - Implantology & Aesthetic Dentistry",
+            "description": "Comprehensive dental care including implants, cosmetic dentistry, orthodontics, root canal treatment and oral surgery.",
+            "doctors": [
+                {
+                    "name": "Dr. Layla Al Rashid",
+                    "designation": "Senior Consultant Implantologist",
+                    "qualification": "BDS, MDS, Fellowship Implantology",
+                    "experience": "14 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "Sun-Thu: 9AM-6PM",
+                    "expertise": ["Dental Implants", "Bone Grafting", "Full Mouth Rehabilitation", "Sinus Lift"]
+                },
+                {
+                    "name": "Dr. Carlos Rodriguez",
+                    "designation": "Consultant Aesthetic Dentist",
+                    "qualification": "BDS, MSc Aesthetic Dentistry",
+                    "experience": "10 years",
+                    "languages": ["English", "Spanish"],
+                    "availability": "Mon-Sat: 10AM-7PM",
+                    "expertise": ["Veneers", "Teeth Whitening", "Smile Design", "Composite Bonding"]
+                },
+                {
+                    "name": "Dr. Nadia Hassan",
+                    "designation": "Specialist Orthodontist",
+                    "qualification": "BDS, MOrth, Fellowship Orthodontics",
+                    "experience": "8 years",
+                    "languages": ["English", "Arabic", "French"],
+                    "availability": "Sun-Thu: 9AM-5PM",
+                    "expertise": ["Braces", "Invisalign", "Pediatric Orthodontics", "Jaw Correction"]
+                }
+            ]
+        },
+        {
+            "name": "Dermatology & Cosmetology",
+            "description": "Expert skin care including treatment of skin diseases, cosmetic procedures, laser treatments and hair loss management.",
+            "doctors": [
+                {
+                    "name": "Dr. Aisha Al Muhairi",
+                    "designation": "Senior Consultant Dermatologist",
+                    "qualification": "MD, Fellowship Dermatology, Laser & Cosmetic Surgery",
+                    "experience": "15 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "Sun-Thu: 9AM-5PM",
+                    "expertise": ["Acne", "Psoriasis", "Laser Treatment", "Anti-aging", "Hair Loss"]
+                },
+                {
+                    "name": "Dr. Sophia Laurent",
+                    "designation": "Consultant Cosmetologist",
+                    "qualification": "MD, MSc Dermatology & Cosmetology",
+                    "experience": "9 years",
+                    "languages": ["English", "French"],
+                    "availability": "Mon-Sat: 10AM-6PM",
+                    "expertise": ["Botox", "Fillers", "Chemical Peels", "PRP Hair Treatment", "Body Contouring"]
+                }
+            ]
+        },
+        {
+            "name": "Ear, Nose & Throat",
+            "description": "Comprehensive ENT care including hearing disorders, sinus problems, throat conditions, voice disorders and head & neck surgery.",
+            "doctors": [
+                {
+                    "name": "Dr. Yousef Al Blooshi",
+                    "designation": "Senior Consultant ENT Surgeon",
+                    "qualification": "MD, FRCS ENT, Fellowship Head & Neck Surgery",
+                    "experience": "17 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "Sun-Thu: 8AM-4PM",
+                    "expertise": ["Sinus Surgery", "Hearing Disorders", "Head & Neck Cancer", "Cochlear Implants"]
+                },
+                {
+                    "name": "Dr. Anitha Krishnan",
+                    "designation": "Specialist ENT",
+                    "qualification": "MBBS, MS ENT",
+                    "experience": "9 years",
+                    "languages": ["English", "Tamil", "Malayalam"],
+                    "availability": "Mon-Fri: 9AM-5PM",
+                    "expertise": ["Tonsillectomy", "Sleep Apnea", "Voice Disorders", "Pediatric ENT"]
+                }
+            ]
+        },
+        {
+            "name": "Gastroenterology",
+            "description": "Expert care for digestive system disorders including endoscopy, colonoscopy, liver diseases and inflammatory bowel disease.",
+            "doctors": [
+                {
+                    "name": "Dr. Mansoor Al Bloushi",
+                    "designation": "Senior Consultant Gastroenterologist",
+                    "qualification": "MD, FRCP, Fellowship Gastroenterology",
+                    "experience": "18 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "Sun-Thu: 8AM-4PM",
+                    "expertise": ["Endoscopy", "Colonoscopy", "Liver Disease", "IBD", "ERCP"]
+                },
+                {
+                    "name": "Dr. Ramesh Nair",
+                    "designation": "Consultant Gastroenterologist",
+                    "qualification": "MBBS, MD, DM Gastroenterology",
+                    "experience": "11 years",
+                    "languages": ["English", "Malayalam", "Hindi"],
+                    "availability": "Mon-Sat: 9AM-5PM",
+                    "expertise": ["Hepatology", "Pancreatitis", "Celiac Disease", "GI Bleeding"]
+                }
+            ]
+        },
+        {
+            "name": "Gastrointestinal Surgery & Obesity Surgery",
+            "description": "Advanced GI and bariatric surgery including gastric bypass, sleeve gastrectomy and minimally invasive procedures for obesity and digestive disorders.",
+            "doctors": [
+                {
+                    "name": "Dr. Faisal Al Hammadi",
+                    "designation": "Senior Consultant GI & Bariatric Surgeon",
+                    "qualification": "MD, FRCS, Fellowship Bariatric Surgery",
+                    "experience": "16 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "Sun-Thu: 8AM-4PM",
+                    "expertise": ["Gastric Bypass", "Sleeve Gastrectomy", "Gastric Band", "Revisional Bariatric Surgery"]
+                },
+                {
+                    "name": "Dr. Suresh Babu",
+                    "designation": "Consultant GI Surgeon",
+                    "qualification": "MBBS, MS, Fellowship Laparoscopic GI Surgery",
+                    "experience": "12 years",
+                    "languages": ["English", "Telugu", "Hindi"],
+                    "availability": "Mon-Fri: 9AM-5PM",
+                    "expertise": ["Colorectal Surgery", "Esophageal Surgery", "Anti-reflux Surgery"]
+                }
+            ]
+        },
+        {
+            "name": "General Medicine",
+            "description": "Comprehensive primary and general medical care for adults covering a wide range of medical conditions and preventive health.",
+            "doctors": [
+                {
+                    "name": "Dr. Ibrahim Al Khateri",
+                    "designation": "Senior Consultant General Physician",
+                    "qualification": "MD, MRCP, Fellowship Internal Medicine",
+                    "experience": "20 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "Sun-Thu: 8AM-8PM",
+                    "expertise": ["Diabetes", "Hypertension", "Thyroid Disorders", "Preventive Medicine"]
+                },
+                {
+                    "name": "Dr. Sherin George",
+                    "designation": "Specialist General Physician",
+                    "qualification": "MBBS, MD General Medicine",
+                    "experience": "8 years",
+                    "languages": ["English", "Malayalam"],
+                    "availability": "Mon-Sat: 9AM-6PM",
+                    "expertise": ["Infectious Diseases", "Allergy", "Respiratory Conditions", "General Checkup"]
+                }
+            ]
+        },
+        {
+            "name": "Internal Medicine",
+            "description": "Specialized internal medicine care for complex medical conditions affecting multiple organ systems.",
+            "doctors": [
+                {
+                    "name": "Dr. Khalifa Al Mazrouei",
+                    "designation": "Senior Consultant Internal Medicine",
+                    "qualification": "MD, FACP, Fellowship Internal Medicine",
+                    "experience": "21 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "Sun-Thu: 8AM-4PM",
+                    "expertise": ["Complex Medical Conditions", "Endocrinology", "Hematology", "Infectious Disease"]
+                },
+                {
+                    "name": "Dr. Deepa Menon",
+                    "designation": "Consultant Internal Medicine",
+                    "qualification": "MBBS, MD, MRCP",
+                    "experience": "13 years",
+                    "languages": ["English", "Malayalam", "Hindi"],
+                    "availability": "Mon-Fri: 9AM-5PM",
+                    "expertise": ["Autoimmune Diseases", "Metabolic Disorders", "Geriatric Medicine"]
+                }
+            ]
+        },
+        {
+            "name": "Interventional Radiology",
+            "description": "Minimally invasive image-guided procedures for diagnosis and treatment of various conditions including tumor embolization and vascular interventions.",
+            "doctors": [
+                {
+                    "name": "Dr. Rashid Al Muhairi",
+                    "designation": "Senior Consultant Interventional Radiologist",
+                    "qualification": "MD, FRCR, Fellowship Interventional Radiology",
+                    "experience": "16 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "Sun-Thu: 8AM-4PM",
+                    "expertise": ["Tumor Embolization", "Angioplasty", "Varicocele Treatment", "Uterine Fibroid Embolization"]
+                },
+                {
+                    "name": "Dr. Joseph Mathew",
+                    "designation": "Specialist Interventional Radiologist",
+                    "qualification": "MBBS, MD Radiology, Fellowship IR",
+                    "experience": "9 years",
+                    "languages": ["English", "Malayalam"],
+                    "availability": "Mon-Fri: 9AM-5PM",
+                    "expertise": ["Vertebroplasty", "TIPS", "Biliary Drainage", "Vascular Access"]
+                }
+            ]
+        },
+        {
+            "name": "Neonatology",
+            "description": "Specialized care for newborns including premature babies and critically ill neonates in a state-of-the-art NICU.",
+            "doctors": [
+                {
+                    "name": "Dr. Mariam Al Shamsi",
+                    "designation": "Senior Consultant Neonatologist",
+                    "qualification": "MD, Fellowship Neonatology, FAAP",
+                    "experience": "17 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "24/7 On Call",
+                    "expertise": ["Premature Care", "Respiratory Distress", "Neonatal Infections", "NICU Management"]
+                },
+                {
+                    "name": "Dr. Liju Abraham",
+                    "designation": "Consultant Neonatologist",
+                    "qualification": "MBBS, MD Pediatrics, Fellowship Neonatology",
+                    "experience": "11 years",
+                    "languages": ["English", "Malayalam"],
+                    "availability": "24/7 Rotating",
+                    "expertise": ["Neonatal Jaundice", "Birth Asphyxia", "Congenital Anomalies", "Neonatal Nutrition"]
+                }
+            ]
+        },
+        {
+            "name": "Nephrology",
+            "description": "Expert care for kidney diseases including chronic kidney disease, dialysis, kidney transplant evaluation and glomerular diseases.",
+            "doctors": [
+                {
+                    "name": "Dr. Juma Al Kaabi",
+                    "designation": "Senior Consultant Nephrologist",
+                    "qualification": "MD, FRCP, Fellowship Nephrology",
+                    "experience": "19 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "Sun-Thu: 8AM-4PM",
+                    "expertise": ["Chronic Kidney Disease", "Dialysis", "Kidney Transplant", "Glomerulonephritis"]
+                },
+                {
+                    "name": "Dr. Suja Kuriakose",
+                    "designation": "Consultant Nephrologist",
+                    "qualification": "MBBS, MD, DM Nephrology",
+                    "experience": "10 years",
+                    "languages": ["English", "Malayalam"],
+                    "availability": "Mon-Fri: 9AM-5PM",
+                    "expertise": ["Hypertensive Nephropathy", "Diabetic Nephropathy", "Peritoneal Dialysis"]
+                }
+            ]
+        },
+        {
+            "name": "Neurology",
+            "description": "Comprehensive neurological care for brain, spinal cord and nerve disorders including stroke, epilepsy, Parkinson's disease and headache.",
+            "doctors": [
+                {
+                    "name": "Dr. Moza Al Ketbi",
+                    "designation": "Senior Consultant Neurologist",
+                    "qualification": "MD, FRCP Neurology, Fellowship Stroke Medicine",
+                    "experience": "18 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "Sun-Thu: 8AM-4PM",
+                    "expertise": ["Stroke", "Epilepsy", "Multiple Sclerosis", "Parkinson's Disease"]
+                },
+                {
+                    "name": "Dr. Vinod Kumar",
+                    "designation": "Consultant Neurologist",
+                    "qualification": "MBBS, MD, DM Neurology",
+                    "experience": "12 years",
+                    "languages": ["English", "Hindi", "Malayalam"],
+                    "availability": "Mon-Sat: 9AM-5PM",
+                    "expertise": ["Headache & Migraine", "Neuropathy", "Movement Disorders", "Dementia"]
+                }
+            ]
+        },
+        {
+            "name": "Neurosurgery",
+            "description": "Advanced surgical treatment for brain, spine and nerve conditions including tumor surgery, spinal decompression and cerebrovascular surgery.",
+            "doctors": [
+                {
+                    "name": "Dr. Sultan Al Dhaheri",
+                    "designation": "Senior Consultant Neurosurgeon",
+                    "qualification": "MD, FRCS Neurosurgery, Fellowship Spine Surgery",
+                    "experience": "20 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "Sun-Thu: 8AM-4PM",
+                    "expertise": ["Brain Tumor Surgery", "Spine Surgery", "Cerebrovascular Surgery", "Skull Base Surgery"]
+                },
+                {
+                    "name": "Dr. Biju Mohan",
+                    "designation": "Consultant Neurosurgeon",
+                    "qualification": "MBBS, MS, MCh Neurosurgery",
+                    "experience": "13 years",
+                    "languages": ["English", "Malayalam"],
+                    "availability": "Mon-Fri: 9AM-5PM",
+                    "expertise": ["Minimally Invasive Spine Surgery", "Peripheral Nerve Surgery", "Hydrocephalus"]
+                }
+            ]
+        },
+        {
+            "name": "Obstetrics & Gynecology",
+            "description": "Complete women's healthcare including prenatal care, high-risk pregnancy, delivery, gynecological surgery and fertility treatment.",
+            "doctors": [
+                {
+                    "name": "Dr. Hessa Al Qubaisi",
+                    "designation": "Senior Consultant Obstetrician & Gynecologist",
+                    "qualification": "MD, MRCOG, Fellowship Maternal-Fetal Medicine",
+                    "experience": "19 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "Sun-Thu: 8AM-4PM",
+                    "expertise": ["High Risk Pregnancy", "Normal Delivery", "C-Section", "Gynecological Oncology"]
+                },
+                {
+                    "name": "Dr. Smitha Rajan",
+                    "designation": "Consultant Gynecologist",
+                    "qualification": "MBBS, MS OBG, Fellowship Laparoscopic Gynecology",
+                    "experience": "12 years",
+                    "languages": ["English", "Malayalam", "Hindi"],
+                    "availability": "Mon-Sat: 9AM-5PM",
+                    "expertise": ["Laparoscopic Surgery", "PCOS", "Endometriosis", "Infertility", "Menopause"]
+                },
+                {
+                    "name": "Dr. Rima Al Jallaf",
+                    "designation": "Specialist Gynecologist",
+                    "qualification": "MD, MRCOG",
+                    "experience": "8 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "Tue-Sat: 10AM-6PM",
+                    "expertise": ["Antenatal Care", "Postnatal Care", "Contraception", "Colposcopy"]
+                }
+            ]
+        },
+        {
+            "name": "Ophthalmology",
+            "description": "Comprehensive eye care including cataract surgery, LASIK, glaucoma treatment, retinal diseases and pediatric ophthalmology.",
+            "doctors": [
+                {
+                    "name": "Dr. Noura Al Shamsi",
+                    "designation": "Senior Consultant Ophthalmologist",
+                    "qualification": "MD, FRCS Ophthalmology, Fellowship Vitreoretinal Surgery",
+                    "experience": "16 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "Sun-Thu: 8AM-4PM",
+                    "expertise": ["Cataract Surgery", "Retinal Disease", "Vitreoretinal Surgery", "Diabetic Eye Disease"]
+                },
+                {
+                    "name": "Dr. Ajith Nair",
+                    "designation": "Consultant Ophthalmologist",
+                    "qualification": "MBBS, MS Ophthalmology, Fellowship LASIK",
+                    "experience": "11 years",
+                    "languages": ["English", "Malayalam"],
+                    "availability": "Mon-Fri: 9AM-5PM",
+                    "expertise": ["LASIK", "Glaucoma", "Corneal Transplant", "Pediatric Eye Care"]
+                }
+            ]
+        },
+        {
+            "name": "Paediatrics",
+            "description": "Comprehensive child healthcare from newborn to adolescent including growth monitoring, vaccinations, and treatment of childhood illnesses.",
+            "doctors": [
+                {
+                    "name": "Dr. Amna Al Marzooqi",
+                    "designation": "Senior Consultant Paediatrician",
+                    "qualification": "MD, FAAP, Fellowship Paediatric Pulmonology",
+                    "experience": "18 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "Sun-Thu: 8AM-5PM",
+                    "expertise": ["General Paediatrics", "Respiratory Disorders", "Childhood Asthma", "Vaccinations"]
+                },
+                {
+                    "name": "Dr. Annie Thomas",
+                    "designation": "Consultant Paediatrician",
+                    "qualification": "MBBS, MD Paediatrics, Fellowship Paediatric Neurology",
+                    "experience": "10 years",
+                    "languages": ["English", "Malayalam"],
+                    "availability": "Mon-Sat: 9AM-5PM",
+                    "expertise": ["Developmental Delay", "ADHD", "Neonatal Care", "Allergies", "Growth Disorders"]
+                }
+            ]
+        },
+        {
+            "name": "Paediatric Surgery",
+            "description": "Specialized surgical care for children from newborns to teenagers covering congenital anomalies, appendicitis and minimally invasive procedures.",
+            "doctors": [
+                {
+                    "name": "Dr. Khaled Al Romaithi",
+                    "designation": "Senior Consultant Paediatric Surgeon",
+                    "qualification": "MD, FRCS Paediatric Surgery",
+                    "experience": "17 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "Sun-Thu: 8AM-4PM",
+                    "expertise": ["Congenital Anomalies", "Neonatal Surgery", "Pediatric Laparoscopy", "Undescended Testis"]
+                },
+                {
+                    "name": "Dr. Sanjay Pillai",
+                    "designation": "Consultant Paediatric Surgeon",
+                    "qualification": "MBBS, MS, MCh Paediatric Surgery",
+                    "experience": "11 years",
+                    "languages": ["English", "Malayalam", "Hindi"],
+                    "availability": "Mon-Fri: 9AM-5PM",
+                    "expertise": ["Appendicitis", "Hernia in Children", "Hydrocephalus Shunt", "Pediatric Urology"]
+                }
+            ]
+        },
+        {
+            "name": "Physical Medicine & Rehabilitation",
+            "description": "Comprehensive rehabilitation services for stroke, orthopedic injuries, sports injuries and neurological conditions to restore function and quality of life.",
+            "doctors": [
+                {
+                    "name": "Dr. Maitha Al Qubaisi",
+                    "designation": "Senior Consultant Physical Medicine & Rehabilitation",
+                    "qualification": "MD, FAAPMR, Fellowship Neurorehabilitation",
+                    "experience": "14 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "Sun-Thu: 8AM-4PM",
+                    "expertise": ["Stroke Rehabilitation", "Spinal Cord Injury", "Sports Rehabilitation", "Pain Management"]
+                },
+                {
+                    "name": "Dr. Pradeep Menon",
+                    "designation": "Specialist Rehabilitation Physician",
+                    "qualification": "MBBS, MD PMR",
+                    "experience": "9 years",
+                    "languages": ["English", "Malayalam"],
+                    "availability": "Mon-Fri: 9AM-5PM",
+                    "expertise": ["Post-surgical Rehab", "Neurological Rehab", "Prosthetics & Orthotics", "Electrotherapy"]
+                }
+            ]
+        },
+        {
+            "name": "Plastic & Reconstructive Surgery",
+            "description": "Expert plastic surgery including reconstructive procedures for trauma and cancer, cosmetic surgery, burns management and microsurgery.",
+            "doctors": [
+                {
+                    "name": "Dr. Essa Al Suwaidi",
+                    "designation": "Senior Consultant Plastic & Reconstructive Surgeon",
+                    "qualification": "MD, FRCS Plastic Surgery, Fellowship Microsurgery",
+                    "experience": "18 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "Sun-Thu: 8AM-4PM",
+                    "expertise": ["Reconstructive Surgery", "Burns", "Microsurgery", "Cleft Lip & Palate", "Hand Surgery"]
+                },
+                {
+                    "name": "Dr. Michelle Dubois",
+                    "designation": "Consultant Cosmetic & Plastic Surgeon",
+                    "qualification": "MD, Fellowship Aesthetic Surgery",
+                    "experience": "11 years",
+                    "languages": ["English", "French"],
+                    "availability": "Mon-Sat: 10AM-6PM",
+                    "expertise": ["Rhinoplasty", "Liposuction", "Breast Augmentation", "Face Lift", "Abdominoplasty"]
+                }
+            ]
+        },
+        {
+            "name": "Psychiatry & Psychology",
+            "description": "Comprehensive mental health services including psychiatric evaluation, psychotherapy, counseling and treatment for anxiety, depression and other mental health conditions.",
+            "doctors": [
+                {
+                    "name": "Dr. Fatima Al Nuaimi",
+                    "designation": "Senior Consultant Psychiatrist",
+                    "qualification": "MD, MRCPsych, Fellowship Child & Adolescent Psychiatry",
+                    "experience": "16 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "Sun-Thu: 8AM-4PM",
+                    "expertise": ["Depression", "Anxiety", "Schizophrenia", "Child Psychiatry", "PTSD"]
+                },
+                {
+                    "name": "Dr. Emma Clarke",
+                    "designation": "Consultant Clinical Psychologist",
+                    "qualification": "MSc, PhD Clinical Psychology",
+                    "experience": "12 years",
+                    "languages": ["English"],
+                    "availability": "Mon-Fri: 9AM-5PM",
+                    "expertise": ["CBT", "Couples Therapy", "Trauma Therapy", "Addiction Counseling", "OCD"]
+                }
+            ]
+        },
+        {
+            "name": "Pulmonary & Sleep Medicine",
+            "description": "Expert care for lung diseases and sleep disorders including asthma, COPD, sleep apnea, interstitial lung disease and pulmonary hypertension.",
+            "doctors": [
+                {
+                    "name": "Dr. Ahmed Al Dhaheri",
+                    "designation": "Senior Consultant Pulmonologist",
+                    "qualification": "MD, FCCP, Fellowship Pulmonary & Sleep Medicine",
+                    "experience": "17 years",
+                    "languages": ["English", "Arabic"],
+                    "availability": "Sun-Thu: 8AM-4PM",
+                    "expertise": ["Asthma", "COPD", "Sleep Apnea", "Pulmonary Hypertension", "Bronchoscopy"]
+                },
+                {
+                    "name": "Dr. Ravi Shankar",
+                    "designation": "Consultant Pulmonologist",
+                    "qualification": "MBBS, MD, DM Pulmonary Medicine",
+                    "experience": "10 years",
+                    "languages": ["English", "Hindi", "Tamil"],
+                    "availability": "Mon-Sat: 9AM-5PM",
+                    "expertise": ["Interstitial Lung Disease", "Pleural Disease", "Lung Cancer", "Sleep Studies"]
+                }
+            ]
+        }
+    ]
+}
+
+# Save to JSON file
+with open('hospital_data.json', 'w', encoding='utf-8') as f:
+    json.dump(hospital_data, f, indent=2, ensure_ascii=False)
+
+print("✅ Hospital data created successfully!")
+print(f"📊 Total Specialties: {len(hospital_data['specialties'])}")
+total_doctors = sum(len(s['doctors']) for s in hospital_data['specialties'])
+print(f"👨‍⚕️ Total Doctors: {total_doctors}")
+print("\n=== SUMMARY ===")
+for specialty in hospital_data['specialties']:
+    print(f"  {specialty['name']}: {len(specialty['doctors'])} doctors")
+    for doc in specialty['doctors']:
+        print(f"    - {doc['name']} | {doc['designation']}")
