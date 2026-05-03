@@ -14,7 +14,11 @@ load_dotenv()
 MONGODB_URL = os.getenv("MONGODB_URL")
 DB_NAME = os.getenv("DB_NAME")
 
-client = AsyncIOMotorClient(MONGODB_URL)
+client = AsyncIOMotorClient(
+    MONGODB_URL,
+    tls=True,
+    tlsAllowInvalidCertificates=True
+)
 db = client[DB_NAME]
 
 appointments_collection = db["appointments"]
@@ -282,16 +286,28 @@ async def health():
 
 @app.get("/api/dashboard/stats")
 async def get_stats():
-    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    today = datetime.now().replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
     return {
         "total_appointments": await appointments_collection.count_documents({}),
         "total_patients": await patients_collection.count_documents({}),
         "total_calls": await calls_collection.count_documents({}),
-        "todays_appointments": await appointments_collection.count_documents({"created_at": {"$gte": today}}),
-        "todays_calls": await calls_collection.count_documents({"created_at": {"$gte": today}}),
-        "confirmed": await appointments_collection.count_documents({"status": "confirmed"}),
-        "pending": await appointments_collection.count_documents({"status": "pending"}),
-        "cancelled": await appointments_collection.count_documents({"status": "cancelled"}),
+        "todays_appointments": await appointments_collection.count_documents(
+            {"created_at": {"$gte": today}}
+        ),
+        "todays_calls": await calls_collection.count_documents(
+            {"created_at": {"$gte": today}}
+        ),
+        "confirmed": await appointments_collection.count_documents(
+            {"status": "confirmed"}
+        ),
+        "pending": await appointments_collection.count_documents(
+            {"status": "pending"}
+        ),
+        "cancelled": await appointments_collection.count_documents(
+            {"status": "cancelled"}
+        ),
     }
 
 @app.get("/api/appointments")
@@ -326,12 +342,16 @@ async def update_appointment(appointment_id: str, request: Request):
 
 @app.delete("/api/appointments/{appointment_id}")
 async def delete_appointment(appointment_id: str):
-    await appointments_collection.delete_one({"appointment_id": appointment_id})
+    await appointments_collection.delete_one(
+        {"appointment_id": appointment_id}
+    )
     return {"status": "deleted"}
 
 @app.get("/api/calls/{call_id}")
 async def get_call(call_id: str):
-    call = await calls_collection.find_one({"call_id": call_id}, {"_id": 0})
+    call = await calls_collection.find_one(
+        {"call_id": call_id}, {"_id": 0}
+    )
     if not call:
         raise HTTPException(status_code=404, detail="Call not found")
     return call
