@@ -4,6 +4,7 @@ from datetime import datetime
 import uuid
 import json
 import os
+import httpx
 import re
 from dotenv import load_dotenv
 from motor.motor_asyncio import AsyncIOMotorClient
@@ -355,6 +356,32 @@ async def get_call(call_id: str):
     if not call:
         raise HTTPException(status_code=404, detail="Call not found")
     return call
+
+@app.post("/create-web-call")
+async def create_web_call(request: Request):
+    try:
+        body = await request.json()
+        agent_id = body.get("agent_id")
+
+        RETELL_API_KEY = os.getenv("RETELL_API_KEY")
+
+        async with httpx.AsyncClient() as client:
+            response = await client.post(
+                "https://api.retellai.com/v2/create-web-call",
+                headers={
+                    "Authorization": f"Bearer {RETELL_API_KEY}",
+                    "Content-Type": "application/json"
+                },
+                json={"agent_id": agent_id}
+            )
+
+        data = response.json()
+        print(f"✅ Web call created: {data}")
+        return data
+
+    except Exception as e:
+        print(f"❌ Error creating web call: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
