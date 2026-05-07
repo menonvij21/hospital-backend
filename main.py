@@ -383,6 +383,160 @@ async def create_web_call(request: Request):
         print(f"❌ Error creating web call: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
+# ============================================
+# CALENDAR ENDPOINTS
+# ============================================
+
+@app.get("/api/calendar/slots")
+async def get_available_slots(doctor_name: str, date: str):
+    try:
+        booked = await appointments_collection.find({
+            "doctor_name": doctor_name,
+            "date": date,
+            "status": {"$ne": "cancelled"}
+        }, {"_id": 0, "time": 1}).to_list(100)
+
+        booked_times = [apt["time"] for apt in booked if apt.get("time")]
+
+        all_slots = []
+        for hour in range(8, 20):
+            for minute in [0, 30]:
+                period = "AM" if hour < 12 else "PM"
+                display_hour = hour if hour <= 12 else hour - 12
+                if display_hour == 0:
+                    display_hour = 12
+                time_str = f"{display_hour}:{minute:02d} {period}"
+                is_booked = time_str in booked_times
+                all_slots.append({
+                    "time": time_str,
+                    "available": not is_booked,
+                    "status": "booked" if is_booked else "available"
+                })
+
+        return {
+            "doctor": doctor_name,
+            "date": date,
+            "slots": all_slots,
+            "total_available": sum(1 for s in all_slots if s["available"]),
+            "total_booked": sum(1 for s in all_slots if not s["available"])
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/calendar/month")
+async def get_month_appointments(year: int, month: int):
+    try:
+        all_apts = await appointments_collection.find(
+            {}, {"_id": 0}
+        ).to_list(1000)
+
+        calendar_data: dict = {}
+
+        for apt in all_apts:
+            date = apt.get("date", "")
+            if not date or date == "To Be Confirmed":
+                continue
+
+            if date not in calendar_data:
+                calendar_data[date] = {
+                    "total": 0,
+                    "confirmed": 0,
+                    "pending": 0,
+                    "cancelled": 0,
+                    "appointments": []
+                }
+
+            calendar_data[date]["total"] += 1
+            status = apt.get("status", "pending")
+            if status in calendar_data[date]:
+                calendar_data[date][status] += 1
+            calendar_data[date]["appointments"].append({
+                "id": apt.get("appointment_id"),
+                "patient": apt.get("patient_name"),
+                "doctor": apt.get("doctor_name"),
+                "specialty": apt.get("specialty"),
+                "time": apt.get("time"),
+                "status": apt.get("status")
+            })
+
+        return {
+            "year": year,
+            "month": month,
+            "data": calendar_data
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/api/calendar/book")
+async def book_appointment_with_check(request: Request):
+    try:
+        body = await request.json()
+        doctor_name = body.get("doctor_name")
+        date = body.get("date")
+        time = body.get("time")
+        patient_name = body.get("patient_name")
+        patient_phone = body.get("patient_phone")
+        specialty = body.get("specialty", "General Medicine")
+
+        # CHECK DOUBLE BOOKING
+        existing = await appointments_collection.find_one({
+            "doctor_name": doctor_name,
+            "date": date,
+            "time": time,
+            "status": {"$ne": "cancelled"}
+        })
+
+        if existing:
+            return {
+                "success": False,
+                "error": f"This slot is already booked by {existing.get('patient_name', 'another patient')}"
+            }
+
+        # CREATE APPOINTMENT
+        appointment = {
+            "appointment_id": f"UH-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:4].upper()}",
+            "patient_name": patient_name,
+            "patient_phone": patient_phone,
+            "doctor_name": doctor_name,
+            "specialty": specialty,
+            "date": date,
+            "time": time,
+            "status": "confirmed",
+            "call_type": "manual",
+            "language": "English",
+            "created_at": datetime.now()
+        }
+
+        await appointments_collection.insert_one(appointment)
+
+        # Update patient record
+        await patients_collection.update_one(
+            {"phone": patient_phone},
+            {
+                "$set": {
+                    "name": patient_name,
+                    "phone": patient_phone,
+                    "last_visit": datetime.now()
+                },
+                "$push": {"appointments": appointment["appointment_id"]},
+                "$inc": {"total_visits": 1}
+            },
+            upsert=True
+        )
+
+        return {
+            "success": True,
+            "appointment": appointment
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
