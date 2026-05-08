@@ -1,6 +1,7 @@
 from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
+from collections import defaultdict
 import uuid
 import json
 import os
@@ -42,18 +43,24 @@ app.add_middleware(
 def detect_language(transcript: str) -> str:
     arabic_chars = sum(1 for c in transcript
                       if '\u0600' <= c <= '\u06FF')
+    hindi_chars = sum(1 for c in transcript
+                     if '\u0900' <= c <= '\u097F')
     if arabic_chars > 10:
         return "Arabic"
+    if hindi_chars > 10:
+        return "Hindi"
     return "English"
 
 def detect_outcome(transcript: str) -> str:
     transcript_lower = transcript.lower()
     if any(word in transcript_lower for word in
            ['appointment', 'booked', 'confirmed', 'scheduled',
-            'موعد', 'حجز', 'تأكيد']):
+            'موعد', 'حجز', 'تأكيد', 'appointment confirm',
+            'booking confirmed', 'aapka appointment']):
         return "Appointment Booked"
     elif any(word in transcript_lower for word in
-             ['emergency', 'urgent', 'طوارئ', 'عاجل']):
+             ['emergency', 'urgent', 'طوارئ', 'عاجل',
+              'seena dard', 'heart attack']):
         return "Emergency Handled"
     elif any(word in transcript_lower for word in
              ['transfer', 'connect you', 'human', 'staff',
@@ -71,6 +78,7 @@ def extract_name(transcript: str) -> str:
         r'my name[\'s]* ([A-Za-z\s]+)',
         r'اسمي ([^\n]+)',
         r'Name: ([A-Za-z\s]+)',
+        r'mera naam ([A-Za-z\s]+)',
     ]
     for pattern in patterns:
         match = re.search(pattern, transcript, re.IGNORECASE)
@@ -150,9 +158,12 @@ def extract_specialty(transcript: str) -> str:
 
 def extract_date(transcript: str) -> str:
     patterns = [
+        r'(\d{4}-\d{2}-\d{2})',
         r'(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})',
-        r'(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}',
-        r'(tomorrow|today|monday|tuesday|wednesday|thursday|friday|saturday|sunday)',
+        r'(january|february|march|april|may|june|july|'
+        r'august|september|october|november|december)\s+\d{1,2}',
+        r'(tomorrow|today|monday|tuesday|wednesday|'
+        r'thursday|friday|saturday|sunday)',
     ]
     for pattern in patterns:
         match = re.search(pattern, transcript, re.IGNORECASE)
@@ -172,14 +183,44 @@ def extract_time(transcript: str) -> str:
             return match.group(1)
     return "To Be Confirmed"
 
-def extract_appointment(transcript: str, call_id: str, call_data: dict):
+def process_transcript(raw_transcript) -> str:
+    if not raw_transcript:
+        return ""
+    if isinstance(raw_transcript, str):
+        return raw_transcript
+    if isinstance(raw_transcript, list):
+        parts = []
+        for item in raw_transcript:
+            if isinstance(item, dict):
+                role = item.get("role", "")
+                content = (
+                    item.get("content", "") or
+                    item.get("text", "") or
+                    item.get("message", "") or ""
+                )
+                if role and content:
+                    parts.append(f"{role.capitalize()}: {content}")
+                elif content:
+                    parts.append(content)
+        return "\n".join(parts)
+    return str(raw_transcript)
+
+def extract_appointment(
+    transcript: str,
+    call_id: str,
+    call_data: dict
+):
     transcript_lower = transcript.lower()
     booking_keywords = [
         'appointment is confirmed',
         'appointment confirmed',
         'booked your appointment',
+        'your appointment has been',
+        'scheduled an appointment',
         'تم تأكيد موعدك',
-        'تم الحجز'
+        'تم الحجز',
+        'aapka appointment confirm',
+        'booking is confirmed'
     ]
     if not any(kw in transcript_lower for kw in booking_keywords):
         return None
@@ -205,10 +246,24 @@ def extract_appointment(transcript: str, call_id: str, call_data: dict):
 async def retell_webhook(request: Request):
     try:
         body = await request.json()
-        print(f"📨 Retell Webhook: {json.dumps(body, indent=2)}")
 
-        event = body.get("event", "")
-        call_data = body.get("data", {})
+        print(f"📨 FULL WEBHOOK: {json.dumps(body, indent=2, default=str)[:2000]}")
+
+        event = (
+            body.get("event") or
+            body.get("type") or
+            body.get("name") or ""
+        )
+
+        call_data = (
+            body.get("data") or
+            body.get("call") or
+            body.get("call_data") or
+            body
+        )
+
+        print(f"📨 Event: {event}")
+        print(f"📨 Call ID: {call_data.get('call_id', 'not found')}")
 
         if event == "call_started":
             call_id = call_data.get("call_id", str(uuid.uuid4()))
@@ -226,12 +281,48 @@ async def retell_webhook(request: Request):
 
         elif event == "call_ended":
             call_id = call_data.get("call_id", "")
-            transcript = call_data.get("transcript", "")
+
+            # Extract transcript from multiple possible fields
+            raw_transcript = (
+                call_data.get("transcript") or
+                call_data.get("transcription") or
+                call_data.get("transcript_object") or
+                call_data.get("full_transcript") or
+                ""
+            )
+
+            transcript = process_transcript(raw_transcript)
+
+            # Extract call analysis
+            call_analysis = call_data.get("call_analysis", {})
+            call_summary = call_analysis.get("call_summary", "")
+            user_sentiment = call_analysis.get("user_sentiment", "")
+            call_successful = call_analysis.get(
+                "call_successful", False
+            )
+
+            # Use summary as fallback if no transcript
+            working_text = transcript or call_summary or ""
+
             duration = call_data.get("duration_ms", 0)
             duration_sec = duration // 1000
-            duration_str = f"{duration_sec // 60}:{duration_sec % 60:02d}"
-            language = detect_language(transcript)
-            outcome = detect_outcome(transcript)
+            duration_str = (
+                f"{duration_sec // 60}:{duration_sec % 60:02d}"
+            )
+
+            language = detect_language(working_text)
+            outcome = detect_outcome(working_text)
+
+            # Override outcome if call was successful appointment
+            if (call_successful and
+                    "appointment" in call_summary.lower()):
+                outcome = "Appointment Booked"
+
+            print(f"📝 Transcript: {len(transcript)} chars")
+            print(f"📋 Summary: {call_summary[:100]}")
+            print(f"🌐 Language: {language}")
+            print(f"📊 Outcome: {outcome}")
+            print(f"😊 Sentiment: {user_sentiment}")
 
             await calls_collection.update_one(
                 {"call_id": call_id},
@@ -239,13 +330,18 @@ async def retell_webhook(request: Request):
                     "status": "completed",
                     "duration": duration_str,
                     "transcript": transcript,
+                    "call_summary": call_summary,
+                    "user_sentiment": user_sentiment,
+                    "call_successful": call_successful,
                     "language": language,
                     "outcome": outcome,
                     "ended_at": datetime.now()
                 }}
             )
 
-            appointment = extract_appointment(transcript, call_id, call_data)
+            appointment = extract_appointment(
+                working_text, call_id, call_data
+            )
             if appointment:
                 await appointments_collection.insert_one(appointment)
                 await calls_collection.update_one(
@@ -272,19 +368,27 @@ async def retell_webhook(request: Request):
                 )
                 print(f"✅ Appointment saved!")
 
+            print(f"✅ Call completed: {call_id}")
+
         return {"status": "success"}
 
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"❌ Webhook Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # ============================================
-# DASHBOARD API ENDPOINTS
+# HEALTH CHECK
 # ============================================
 @app.get("/")
 async def health():
-    return {"status": "running", "message": "Universal Hospital Backend"}
+    return {
+        "status": "running",
+        "message": "Universal Hospital Backend"
+    }
 
+# ============================================
+# DASHBOARD STATS
+# ============================================
 @app.get("/api/dashboard/stats")
 async def get_stats():
     today = datetime.now().replace(
@@ -311,6 +415,110 @@ async def get_stats():
         ),
     }
 
+# ============================================
+# REAL CHART DATA
+# ============================================
+@app.get("/api/dashboard/chart-data")
+async def get_chart_data():
+    try:
+        all_appointments = await appointments_collection.find(
+            {}, {"_id": 0, "created_at": 1, "status": 1, "specialty": 1}
+        ).to_list(1000)
+
+        all_calls = await calls_collection.find(
+            {}, {"_id": 0, "created_at": 1, "outcome": 1}
+        ).to_list(1000)
+
+        # Group by day of week
+        days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+        day_data: dict = defaultdict(
+            lambda: {'calls': 0, 'appointments': 0, 'patients': 0}
+        )
+
+        for apt in all_appointments:
+            if apt.get('created_at'):
+                try:
+                    day = apt['created_at'].strftime('%a')
+                    day_data[day]['appointments'] += 1
+                    day_data[day]['patients'] += 1
+                except Exception:
+                    pass
+
+        for call in all_calls:
+            if call.get('created_at'):
+                try:
+                    day = call['created_at'].strftime('%a')
+                    day_data[day]['calls'] += 1
+                except Exception:
+                    pass
+
+        chart_data = []
+        for day in days:
+            chart_data.append({
+                'day': day,
+                'calls': day_data[day]['calls'],
+                'appointments': day_data[day]['appointments'],
+                'patients': day_data[day]['patients']
+            })
+
+        # Specialty breakdown
+        specialty_counts: dict = defaultdict(int)
+        for apt in all_appointments:
+            specialty = apt.get('specialty', 'General Medicine')
+            if specialty:
+                specialty_counts[specialty] += 1
+
+        total_apts = sum(specialty_counts.values()) or 1
+        colors = [
+            '#6366f1', '#8b5cf6', '#a78bfa',
+            '#c4b5fd', '#e0e7ff'
+        ]
+        specialty_data = []
+        sorted_specialties = sorted(
+            specialty_counts.items(),
+            key=lambda x: x[1],
+            reverse=True
+        )[:5]
+
+        for i, (name, count) in enumerate(sorted_specialties):
+            specialty_data.append({
+                'name': name,
+                'value': round((count / total_apts) * 100),
+                'color': colors[i % len(colors)]
+            })
+
+        # Outcome breakdown
+        outcome_counts: dict = defaultdict(int)
+        for call in all_calls:
+            outcome = call.get('outcome', 'Information Provided')
+            if outcome and outcome != 'ongoing':
+                outcome_counts[outcome] += 1
+
+        total_calls = sum(outcome_counts.values()) or 1
+        outcome_colors = [
+            '#10b981', '#6366f1', '#ef4444', '#f59e0b'
+        ]
+        outcome_data = []
+        for i, (name, count) in enumerate(outcome_counts.items()):
+            outcome_data.append({
+                'name': name,
+                'value': round((count / total_calls) * 100),
+                'color': outcome_colors[i % len(outcome_colors)]
+            })
+
+        return {
+            'chart_data': chart_data,
+            'specialty_data': specialty_data,
+            'outcome_data': outcome_data
+        }
+
+    except Exception as e:
+        print(f"❌ Chart data error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+# ============================================
+# APPOINTMENTS
+# ============================================
 @app.get("/api/appointments")
 async def get_appointments(limit: int = 50, skip: int = 0):
     appointments = await appointments_collection.find(
@@ -318,22 +526,11 @@ async def get_appointments(limit: int = 50, skip: int = 0):
     ).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
     return {"appointments": appointments, "total": len(appointments)}
 
-@app.get("/api/calls")
-async def get_calls(limit: int = 50, skip: int = 0):
-    calls = await calls_collection.find(
-        {}, {"_id": 0}
-    ).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
-    return {"calls": calls, "total": len(calls)}
-
-@app.get("/api/patients")
-async def get_patients(limit: int = 50, skip: int = 0):
-    patients = await patients_collection.find(
-        {}, {"_id": 0}
-    ).sort("last_visit", -1).skip(skip).limit(limit).to_list(limit)
-    return {"patients": patients, "total": len(patients)}
-
 @app.patch("/api/appointments/{appointment_id}")
-async def update_appointment(appointment_id: str, request: Request):
+async def update_appointment(
+    appointment_id: str,
+    request: Request
+):
     body = await request.json()
     await appointments_collection.update_one(
         {"appointment_id": appointment_id},
@@ -348,6 +545,16 @@ async def delete_appointment(appointment_id: str):
     )
     return {"status": "deleted"}
 
+# ============================================
+# CALLS
+# ============================================
+@app.get("/api/calls")
+async def get_calls(limit: int = 50, skip: int = 0):
+    calls = await calls_collection.find(
+        {}, {"_id": 0}
+    ).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
+    return {"calls": calls, "total": len(calls)}
+
 @app.get("/api/calls/{call_id}")
 async def get_call(call_id: str):
     call = await calls_collection.find_one(
@@ -357,6 +564,19 @@ async def get_call(call_id: str):
         raise HTTPException(status_code=404, detail="Call not found")
     return call
 
+# ============================================
+# PATIENTS
+# ============================================
+@app.get("/api/patients")
+async def get_patients(limit: int = 50, skip: int = 0):
+    patients = await patients_collection.find(
+        {}, {"_id": 0}
+    ).sort("last_visit", -1).skip(skip).limit(limit).to_list(limit)
+    return {"patients": patients, "total": len(patients)}
+
+# ============================================
+# CREATE WEB CALL
+# ============================================
 @app.post("/create-web-call")
 async def create_web_call(request: Request):
     try:
@@ -365,28 +585,34 @@ async def create_web_call(request: Request):
 
         RETELL_API_KEY = os.getenv("RETELL_API_KEY")
 
+        if not RETELL_API_KEY:
+            raise HTTPException(
+                status_code=500,
+                detail="RETELL_API_KEY not configured"
+            )
+
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 "https://api.retellai.com/v2/create-web-call",
                 headers={
-                    "Authorization": f"Bearer {RETELL_API_KEY}",
+                    "Authorization": f"Bearer {RETELL_API_KEY.strip()}",
                     "Content-Type": "application/json"
                 },
-                json={"agent_id": agent_id}
+                json={"agent_id": agent_id},
+                timeout=10.0
             )
 
         data = response.json()
-        print(f"✅ Web call created: {data}")
+        print(f"✅ Web call: {data.get('call_id', 'unknown')}")
         return data
 
     except Exception as e:
-        print(f"❌ Error creating web call: {e}")
+        print(f"❌ Web call error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # ============================================
 # CALENDAR ENDPOINTS
 # ============================================
-
 @app.get("/api/calendar/slots")
 async def get_available_slots(doctor_name: str, date: str):
     try:
@@ -396,7 +622,9 @@ async def get_available_slots(doctor_name: str, date: str):
             "status": {"$ne": "cancelled"}
         }, {"_id": 0, "time": 1}).to_list(100)
 
-        booked_times = [apt["time"] for apt in booked if apt.get("time")]
+        booked_times = [
+            apt["time"] for apt in booked if apt.get("time")
+        ]
 
         all_slots = []
         for hour in range(8, 20):
@@ -417,8 +645,12 @@ async def get_available_slots(doctor_name: str, date: str):
             "doctor": doctor_name,
             "date": date,
             "slots": all_slots,
-            "total_available": sum(1 for s in all_slots if s["available"]),
-            "total_booked": sum(1 for s in all_slots if not s["available"])
+            "total_available": sum(
+                1 for s in all_slots if s["available"]
+            ),
+            "total_booked": sum(
+                1 for s in all_slots if not s["available"]
+            )
         }
 
     except Exception as e:
@@ -452,6 +684,7 @@ async def get_month_appointments(year: int, month: int):
             status = apt.get("status", "pending")
             if status in calendar_data[date]:
                 calendar_data[date][status] += 1
+
             calendar_data[date]["appointments"].append({
                 "id": apt.get("appointment_id"),
                 "patient": apt.get("patient_name"),
@@ -496,7 +729,6 @@ async def book_appointment_with_check(request: Request):
                 "error": f"This slot is already booked by {existing.get('patient_name', 'another patient')}"
             }
 
-        # CREATE APPOINTMENT
         appointment = {
             "appointment_id": f"UH-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:4].upper()}",
             "patient_name": patient_name,
@@ -513,7 +745,6 @@ async def book_appointment_with_check(request: Request):
 
         await appointments_collection.insert_one(appointment)
 
-        # Update patient record
         await patients_collection.update_one(
             {"phone": patient_phone},
             {
@@ -522,7 +753,9 @@ async def book_appointment_with_check(request: Request):
                     "phone": patient_phone,
                     "last_visit": datetime.now()
                 },
-                "$push": {"appointments": appointment["appointment_id"]},
+                "$push": {
+                    "appointments": appointment["appointment_id"]
+                },
                 "$inc": {"total_visits": 1}
             },
             upsert=True
@@ -539,4 +772,9 @@ async def book_appointment_with_check(request: Request):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(
+        app,
+        host="0.0.0.0",
+        port=8000,
+        reload=True
+    )
