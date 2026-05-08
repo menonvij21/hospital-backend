@@ -74,16 +74,19 @@ def detect_outcome(transcript: str) -> str:
 
 def extract_name(transcript: str) -> str:
     patterns = [
-        r'name is ([A-Za-z\s]+)',
-        r'my name[\'s]* ([A-Za-z\s]+)',
-        r'اسمي ([^\n]+)',
-        r'Name: ([A-Za-z\s]+)',
-        r'mera naam ([A-Za-z\s]+)',
+        r'(?:my name is|name is|I am|I\'m|this is)\s+([A-Za-z]+(?:\s+[A-Za-z]+)*)',
+        r'(?:اسمي|أنا)\s+([^\n\.،]+)',
+        r'(?:mera naam|main hoon|naam hai)\s+([A-Za-z]+(?:\s+[A-Za-z]+)*)',
+        r'Name:\s*([A-Za-z]+(?:\s+[A-Za-z]+)*)',
     ]
     for pattern in patterns:
         match = re.search(pattern, transcript, re.IGNORECASE)
         if match:
-            return match.group(1).strip()[:50]
+            name = match.group(1).strip()
+            stop_words = ['the', 'a', 'an', 'is', 'are', 'was', 'going', 'to']
+            words = [w for w in name.split() if w.lower() not in stop_words]
+            if words:
+                return ' '.join(words[:3])[:50]
     return "Unknown Patient"
 
 def extract_phone(transcript: str, call_data: dict) -> str:
