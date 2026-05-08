@@ -157,31 +157,60 @@ def extract_specialty(transcript: str) -> str:
     return "General Medicine"
 
 def extract_date(transcript: str) -> str:
+    from datetime import datetime, timedelta
+
+    transcript_lower = transcript.lower()
+    today = datetime.now()
+
+    # Relative dates
+    if 'today' in transcript_lower or 'اليوم' in transcript_lower or 'aaj' in transcript_lower:
+        return today.strftime('%Y-%m-%d')
+
+    if 'tomorrow' in transcript_lower or 'غدا' in transcript_lower or 'kal' in transcript_lower or 'next day' in transcript_lower:
+        return (today + timedelta(days=1)).strftime('%Y-%m-%d')
+
+    # Day names
+    days_map = {
+        'monday': 0, 'tuesday': 1, 'wednesday': 2,
+        'thursday': 3, 'friday': 4, 'saturday': 5, 'sunday': 6
+    }
+    for day_name, day_num in days_map.items():
+        if day_name in transcript_lower:
+            days_ahead = day_num - today.weekday()
+            if days_ahead <= 0:
+                days_ahead += 7
+            return (today + timedelta(days=days_ahead)).strftime('%Y-%m-%d')
+
+    # Explicit date patterns
     patterns = [
         r'(\d{4}-\d{2}-\d{2})',
         r'(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})',
-        r'(january|february|march|april|may|june|july|'
-        r'august|september|october|november|december)\s+\d{1,2}',
-        r'(tomorrow|today|monday|tuesday|wednesday|'
-        r'thursday|friday|saturday|sunday)',
+        r'(january|february|march|april|may|june|july|august|september|october|november|december)\s+\d{1,2}',
     ]
     for pattern in patterns:
         match = re.search(pattern, transcript, re.IGNORECASE)
         if match:
             return match.group(1)
-    return "To Be Confirmed"
 
-def extract_time(transcript: str) -> str:
+    # Default to tomorrow if nothing found
+    return (today + timedelta(days=1)).strftime('%Y-%m-%d')
+
+def extract_name(transcript: str) -> str:
     patterns = [
-        r'(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm))',
-        r'(\d{1,2}\s*(?:AM|PM|am|pm))',
-        r'(morning|afternoon|evening)',
+        r'(?:my name is|name is|I am|I\'m|this is)\s+([A-Za-z]+(?:\s+[A-Za-z]+)*)',
+        r'(?:اسمي|أنا)\s+([^\n\.،]+)',
+        r'(?:mera naam|main hoon|naam hai)\s+([A-Za-z]+(?:\s+[A-Za-z]+)*)',
+        r'Name:\s*([A-Za-z]+(?:\s+[A-Za-z]+)*)',
     ]
     for pattern in patterns:
         match = re.search(pattern, transcript, re.IGNORECASE)
         if match:
-            return match.group(1)
-    return "To Be Confirmed"
+            name = match.group(1).strip()
+            stop_words = ['the', 'a', 'an', 'is', 'are', 'was', 'going', 'to']
+            words = [w for w in name.split() if w.lower() not in stop_words]
+            if words:
+                return ' '.join(words[:3])[:50]
+    return "Unknown Patient"
 
 def process_transcript(raw_transcript) -> str:
     if not raw_transcript:
