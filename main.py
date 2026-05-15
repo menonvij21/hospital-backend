@@ -41,6 +41,8 @@ app.add_middleware(
 # HELPER FUNCTIONS
 # ============================================
 def detect_language(transcript: str) -> str:
+    if not transcript:
+        return "English"
     arabic_chars = sum(1 for c in transcript
                       if '\u0600' <= c <= '\u06FF')
     hindi_chars = sum(1 for c in transcript
@@ -52,6 +54,8 @@ def detect_language(transcript: str) -> str:
     return "English"
 
 def detect_outcome(transcript: str) -> str:
+    if not transcript:
+        return "Information Provided"
     transcript_lower = transcript.lower()
     if any(word in transcript_lower for word in
            ['appointment', 'booked', 'confirmed', 'scheduled',
@@ -198,22 +202,29 @@ def extract_date(transcript: str) -> str:
     # Default to tomorrow if nothing found
     return (today + timedelta(days=1)).strftime('%Y-%m-%d')
 
-def extract_name(transcript: str) -> str:
+def extract_time(transcript: str) -> str:
+    """Extract appointment time from transcript"""
     patterns = [
-        r'(?:my name is|name is|I am|I\'m|this is)\s+([A-Za-z]+(?:\s+[A-Za-z]+)*)',
-        r'(?:اسمي|أنا)\s+([^\n\.،]+)',
-        r'(?:mera naam|main hoon|naam hai)\s+([A-Za-z]+(?:\s+[A-Za-z]+)*)',
-        r'Name:\s*([A-Za-z]+(?:\s+[A-Za-z]+)*)',
+        r'(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm))',
+        r'(\d{1,2}\s*(?:AM|PM|am|pm))',
+        r'at\s+(\d{1,2})',
     ]
+    
     for pattern in patterns:
         match = re.search(pattern, transcript, re.IGNORECASE)
         if match:
-            name = match.group(1).strip()
-            stop_words = ['the', 'a', 'an', 'is', 'are', 'was', 'going', 'to']
-            words = [w for w in name.split() if w.lower() not in stop_words]
-            if words:
-                return ' '.join(words[:3])[:50]
-    return "Unknown Patient"
+            time_str = match.group(1).upper()
+            # Normalize format
+            if ':' not in time_str:
+                # Extract hour and add :00
+                hour_match = re.search(r'(\d{1,2})', time_str)
+                if hour_match:
+                    hour = hour_match.group(1)
+                    period = 'AM' if 'AM' in time_str else 'PM'
+                    return f"{hour}:00 {period}"
+            return time_str
+    
+    return "To Be Confirmed"
 
 def process_transcript(raw_transcript) -> str:
     if not raw_transcript:
@@ -337,7 +348,7 @@ async def retell_webhook(request: Request):
             working_text = transcript or call_summary or ""
 
             duration = call_data.get("duration_ms", 0)
-            duration_sec = duration // 1000
+            duration_sec = duration // 1000 if duration else 0
             duration_str = (
                 f"{duration_sec // 60}:{duration_sec % 60:02d}"
             )
@@ -368,7 +379,8 @@ async def retell_webhook(request: Request):
                     "language": language,
                     "outcome": outcome,
                     "ended_at": datetime.now()
-                }}
+                }},
+                upsert=True
             )
 
             appointment = extract_appointment(
@@ -398,7 +410,7 @@ async def retell_webhook(request: Request):
                     },
                     upsert=True
                 )
-                print(f"✅ Appointment saved!")
+                print(f"✅ Appointment saved: {appointment['appointment_id']}")
 
             print(f"✅ Call completed: {call_id}")
 
@@ -406,6 +418,8 @@ async def retell_webhook(request: Request):
 
     except Exception as e:
         print(f"❌ Webhook Error: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 # ============================================
@@ -463,7 +477,7 @@ async def get_chart_data():
 
         # Group by day of week
         days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-        day_data: dict = defaultdict(
+        day_data = defaultdict(
             lambda: {'calls': 0, 'appointments': 0, 'patients': 0}
         )
 
@@ -494,7 +508,7 @@ async def get_chart_data():
             })
 
         # Specialty breakdown
-        specialty_counts: dict = defaultdict(int)
+        specialty_counts = defaultdict(int)
         for apt in all_appointments:
             specialty = apt.get('specialty', 'General Medicine')
             if specialty:
@@ -520,7 +534,7 @@ async def get_chart_data():
             })
 
         # Outcome breakdown
-        outcome_counts: dict = defaultdict(int)
+        outcome_counts = defaultdict(int)
         for call in all_calls:
             outcome = call.get('outcome', 'Information Provided')
             if outcome and outcome != 'ongoing':
@@ -546,6 +560,8 @@ async def get_chart_data():
 
     except Exception as e:
         print(f"❌ Chart data error: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 # ============================================
@@ -564,17 +580,21 @@ async def update_appointment(
     request: Request
 ):
     body = await request.json()
-    await appointments_collection.update_one(
+    result = await appointments_collection.update_one(
         {"appointment_id": appointment_id},
         {"$set": body}
     )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Appointment not found")
     return {"status": "updated"}
 
 @app.delete("/api/appointments/{appointment_id}")
 async def delete_appointment(appointment_id: str):
-    await appointments_collection.delete_one(
+    result = await appointments_collection.delete_one(
         {"appointment_id": appointment_id}
     )
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Appointment not found")
     return {"status": "deleted"}
 
 # ============================================
@@ -615,6 +635,9 @@ async def create_web_call(request: Request):
         body = await request.json()
         agent_id = body.get("agent_id")
 
+        if not agent_id:
+            raise HTTPException(status_code=400, detail="agent_id is required")
+
         RETELL_API_KEY = os.getenv("RETELL_API_KEY")
 
         if not RETELL_API_KEY:
@@ -633,13 +656,19 @@ async def create_web_call(request: Request):
                 json={"agent_id": agent_id},
                 timeout=10.0
             )
+            response.raise_for_status()
 
         data = response.json()
         print(f"✅ Web call: {data.get('call_id', 'unknown')}")
         return data
 
+    except httpx.HTTPError as e:
+        print(f"❌ HTTP error: {e}")
+        raise HTTPException(status_code=502, detail=f"Retell API error: {str(e)}")
     except Exception as e:
         print(f"❌ Web call error: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 # ============================================
@@ -686,6 +715,9 @@ async def get_available_slots(doctor_name: str, date: str):
         }
 
     except Exception as e:
+        print(f"❌ Calendar slots error: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -696,7 +728,7 @@ async def get_month_appointments(year: int, month: int):
             {}, {"_id": 0}
         ).to_list(1000)
 
-        calendar_data: dict = {}
+        calendar_data = {}
 
         for apt in all_apts:
             date = apt.get("date", "")
@@ -733,6 +765,9 @@ async def get_month_appointments(year: int, month: int):
         }
 
     except Exception as e:
+        print(f"❌ Calendar month error: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -746,6 +781,13 @@ async def book_appointment_with_check(request: Request):
         patient_name = body.get("patient_name")
         patient_phone = body.get("patient_phone")
         specialty = body.get("specialty", "General Medicine")
+
+        # Validate required fields
+        if not all([doctor_name, date, time, patient_name, patient_phone]):
+            raise HTTPException(
+                status_code=400,
+                detail="Missing required fields"
+            )
 
         # CHECK DOUBLE BOOKING
         existing = await appointments_collection.find_one({
@@ -798,7 +840,12 @@ async def book_appointment_with_check(request: Request):
             "appointment": appointment
         }
 
+    except HTTPException:
+        raise
     except Exception as e:
+        print(f"❌ Booking error: {e}")
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
 
