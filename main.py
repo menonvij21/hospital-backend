@@ -278,19 +278,56 @@ def extract_appointment(transcript: str, call_id: str, call_data: dict):
 async def retell_book(request: Request):
     try:
         body = await request.json()
-        print(f"🔧 Retell tool called: {json.dumps(body, default=str)}")
 
-        # Retell sends tool arguments inside 'args' key
-        args = body.get("args", body)
+        # Log everything so we can see exactly what Retell sends
+        print(f"🔧 Retell tool RAW BODY: {json.dumps(body, default=str)}")
+        print(f"🔧 Body keys: {list(body.keys())}")
 
-        patient_name  = args.get("patient_name", "").strip() or "Unknown Patient"
-        patient_phone = args.get("patient_phone", "").strip() or "Not provided"
-        doctor_name   = args.get("doctor_name", "").strip() or "To Be Assigned"
-        specialty     = args.get("specialty", "").strip() or "General Medicine"
-        date          = args.get("date", "").strip()
-        time          = args.get("time", "").strip()
-        language      = args.get("language", "English").strip()
-        call_id       = args.get("call_id", body.get("call_id", "")).strip()
+        # Retell can send args in multiple formats:
+        # Format 1: { "args": { "patient_name": ... } }
+        # Format 2: { "patient_name": ... }  (flat)
+        # Format 3: { "parameters": { ... } }
+        args = (
+            body.get("args") or
+            body.get("parameters") or
+            body.get("input") or
+            body
+        )
+
+        print(f"🔧 Resolved args: {json.dumps(args, default=str)}")
+
+        # Use str() to safely handle None values before stripping
+        patient_name  = str(args.get("patient_name") or "").strip() or "Unknown Patient"
+        patient_phone = str(args.get("patient_phone") or "").strip() or "Not provided"
+        doctor_name   = str(args.get("doctor_name") or "").strip() or "To Be Assigned"
+        specialty     = str(args.get("specialty") or "").strip() or "General Medicine"
+        date          = str(args.get("date") or "").strip()
+        time          = str(args.get("time") or "").strip()
+        language      = str(args.get("language") or "English").strip()
+        call_id       = str(args.get("call_id") or body.get("call_id") or "").strip()
+
+        # Fix wrong year — if Retell sends a past date, correct the year to current/next year
+        if date:
+            try:
+                from datetime import timedelta
+                parsed = datetime.strptime(date, "%Y-%m-%d")
+                today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+                if parsed < today:
+                    # Move to same month/day in current or next year
+                    corrected = parsed.replace(year=today.year)
+                    if corrected < today:
+                        corrected = parsed.replace(year=today.year + 1)
+                    date = corrected.strftime("%Y-%m-%d")
+                    print(f"📅 Date corrected from {parsed.strftime('%Y-%m-%d')} to {date}")
+            except Exception as e:
+                print(f"⚠️ Date parse error: {e}")
+
+        # Normalize time — "2 PM" → "2:00 PM"
+        if time and ':' not in time:
+            import re as _re
+            m = _re.match(r'^(\d{1,2})\s*(AM|PM)$', time.strip(), _re.IGNORECASE)
+            if m:
+                time = f"{m.group(1)}:00 {m.group(2).upper()}"
 
         # Validate required fields — Sara will read the message aloud
         if not date:
