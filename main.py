@@ -43,10 +43,8 @@ app.add_middleware(
 def detect_language(transcript: str) -> str:
     if not transcript:
         return "English"
-    arabic_chars = sum(1 for c in transcript
-                      if '\u0600' <= c <= '\u06FF')
-    hindi_chars = sum(1 for c in transcript
-                     if '\u0900' <= c <= '\u097F')
+    arabic_chars = sum(1 for c in transcript if '\u0600' <= c <= '\u06FF')
+    hindi_chars = sum(1 for c in transcript if '\u0900' <= c <= '\u097F')
     if arabic_chars > 10:
         return "Arabic"
     if hindi_chars > 10:
@@ -57,21 +55,23 @@ def detect_outcome(transcript: str) -> str:
     if not transcript:
         return "Information Provided"
     transcript_lower = transcript.lower()
-    if any(word in transcript_lower for word in
-           ['appointment', 'booked', 'confirmed', 'scheduled',
-            'موعد', 'حجز', 'تأكيد', 'appointment confirm',
-            'booking confirmed', 'aapka appointment']):
+    if any(word in transcript_lower for word in [
+        'appointment', 'booked', 'confirmed', 'scheduled',
+        'موعد', 'حجز', 'تأكيد', 'appointment confirm',
+        'booking confirmed', 'aapka appointment'
+    ]):
         return "Appointment Booked"
-    elif any(word in transcript_lower for word in
-             ['emergency', 'urgent', 'طوارئ', 'عاجل',
-              'seena dard', 'heart attack']):
+    elif any(word in transcript_lower for word in [
+        'emergency', 'urgent', 'طوارئ', 'عاجل', 'seena dard', 'heart attack'
+    ]):
         return "Emergency Handled"
-    elif any(word in transcript_lower for word in
-             ['transfer', 'connect you', 'human', 'staff',
-              'تحويل', 'موظف']):
+    elif any(word in transcript_lower for word in [
+        'transfer', 'connect you', 'human', 'staff', 'تحويل', 'موظف'
+    ]):
         return "Transferred to Human"
-    elif any(word in transcript_lower for word in
-             ['reschedule', 'cancel', 'إلغاء', 'تغيير']):
+    elif any(word in transcript_lower for word in [
+        'reschedule', 'cancel', 'إلغاء', 'تغيير'
+    ]):
         return "Appointment Modified"
     else:
         return "Information Provided"
@@ -164,19 +164,15 @@ def extract_specialty(transcript: str) -> str:
     return "General Medicine"
 
 def extract_date(transcript: str) -> str:
-    from datetime import datetime, timedelta
-
+    from datetime import timedelta
     transcript_lower = transcript.lower()
     today = datetime.now()
 
-    # Relative dates
     if 'today' in transcript_lower or 'اليوم' in transcript_lower or 'aaj' in transcript_lower:
         return today.strftime('%Y-%m-%d')
-
     if 'tomorrow' in transcript_lower or 'غدا' in transcript_lower or 'kal' in transcript_lower or 'next day' in transcript_lower:
         return (today + timedelta(days=1)).strftime('%Y-%m-%d')
 
-    # Day names
     days_map = {
         'monday': 0, 'tuesday': 1, 'wednesday': 2,
         'thursday': 3, 'friday': 4, 'saturday': 5, 'sunday': 6
@@ -188,7 +184,6 @@ def extract_date(transcript: str) -> str:
                 days_ahead += 7
             return (today + timedelta(days=days_ahead)).strftime('%Y-%m-%d')
 
-    # Explicit date patterns
     patterns = [
         r'(\d{4}-\d{2}-\d{2})',
         r'(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})',
@@ -199,31 +194,25 @@ def extract_date(transcript: str) -> str:
         if match:
             return match.group(1)
 
-    # Default to tomorrow if nothing found
     return (today + timedelta(days=1)).strftime('%Y-%m-%d')
 
 def extract_time(transcript: str) -> str:
-    """Extract appointment time from transcript"""
     patterns = [
         r'(\d{1,2}:\d{2}\s*(?:AM|PM|am|pm))',
         r'(\d{1,2}\s*(?:AM|PM|am|pm))',
         r'at\s+(\d{1,2})',
     ]
-    
     for pattern in patterns:
         match = re.search(pattern, transcript, re.IGNORECASE)
         if match:
             time_str = match.group(1).upper()
-            # Normalize format
             if ':' not in time_str:
-                # Extract hour and add :00
                 hour_match = re.search(r'(\d{1,2})', time_str)
                 if hour_match:
                     hour = hour_match.group(1)
                     period = 'AM' if 'AM' in time_str else 'PM'
                     return f"{hour}:00 {period}"
             return time_str
-    
     return "To Be Confirmed"
 
 def process_transcript(raw_transcript) -> str:
@@ -248,11 +237,7 @@ def process_transcript(raw_transcript) -> str:
         return "\n".join(parts)
     return str(raw_transcript)
 
-def extract_appointment(
-    transcript: str,
-    call_id: str,
-    call_data: dict
-):
+def extract_appointment(transcript: str, call_id: str, call_data: dict):
     transcript_lower = transcript.lower()
     booking_keywords = [
         'appointment is confirmed',
@@ -282,14 +267,128 @@ def extract_appointment(
         "created_at": datetime.now()
     }
 
+
+# ============================================
+# RETELL CUSTOM TOOL — BOOK APPOINTMENT
+# Called by Sara MID-CALL the moment patient confirms.
+# Sara passes structured data directly — no parsing needed.
+# Set this URL in Retell dashboard under Agent → Tools.
+# ============================================
+@app.post("/api/retell-book")
+async def retell_book(request: Request):
+    try:
+        body = await request.json()
+        print(f"🔧 Retell tool called: {json.dumps(body, default=str)}")
+
+        # Retell sends tool arguments inside 'args' key
+        args = body.get("args", body)
+
+        patient_name  = args.get("patient_name", "").strip() or "Unknown Patient"
+        patient_phone = args.get("patient_phone", "").strip() or "Not provided"
+        doctor_name   = args.get("doctor_name", "").strip() or "To Be Assigned"
+        specialty     = args.get("specialty", "").strip() or "General Medicine"
+        date          = args.get("date", "").strip()
+        time          = args.get("time", "").strip()
+        language      = args.get("language", "English").strip()
+        call_id       = args.get("call_id", body.get("call_id", "")).strip()
+
+        # Validate required fields — Sara will read the message aloud
+        if not date:
+            return {"result": "missing_info", "message": "I need the appointment date to complete the booking."}
+        if not time:
+            return {"result": "missing_info", "message": "I need the preferred time to complete the booking."}
+        if not doctor_name or doctor_name == "To Be Assigned":
+            return {"result": "missing_info", "message": "Please confirm which doctor you would like to see."}
+
+        # Check for double booking
+        existing = await appointments_collection.find_one({
+            "doctor_name": doctor_name,
+            "date": date,
+            "time": time,
+            "status": {"$ne": "cancelled"}
+        })
+        if existing:
+            return {
+                "result": "slot_unavailable",
+                "message": f"I'm sorry, that slot is already taken. Could you please choose a different time?"
+            }
+
+        # Create the appointment
+        appointment_id = f"UH-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:4].upper()}"
+        appointment = {
+            "appointment_id": appointment_id,
+            "call_id": call_id,
+            "patient_name": patient_name,
+            "patient_phone": patient_phone,
+            "doctor_name": doctor_name,
+            "specialty": specialty,
+            "date": date,
+            "time": time,
+            "language": language,
+            "status": "confirmed",
+            "call_type": "inbound",
+            "booked_via": "retell_tool",   # so you can distinguish from manual bookings
+            "created_at": datetime.now()
+        }
+
+        await appointments_collection.insert_one(appointment)
+
+        # Upsert patient record
+        await patients_collection.update_one(
+            {"phone": patient_phone},
+            {
+                "$set": {
+                    "name": patient_name,
+                    "phone": patient_phone,
+                    "last_visit": datetime.now(),
+                },
+                "$push": {"appointments": appointment_id},
+                "$inc": {"total_visits": 1}
+            },
+            upsert=True
+        )
+
+        # Mark the call as booked
+        if call_id:
+            await calls_collection.update_one(
+                {"call_id": call_id},
+                {"$set": {
+                    "appointment_booked": True,
+                    "appointment_id": appointment_id,
+                    "outcome": "Appointment Booked"
+                }}
+            )
+
+        print(f"✅ Retell tool booked: {appointment_id} — {patient_name} with {doctor_name} on {date} at {time}")
+
+        # This message is read aloud by Sara to the patient
+        return {
+            "result": "success",
+            "appointment_id": appointment_id,
+            "message": f"Your appointment is confirmed with {doctor_name} on {date} at {time}. Please arrive 15 minutes early and bring your Emirates ID."
+        }
+
+    except Exception as e:
+        print(f"❌ Retell tool error: {e}")
+        import traceback
+        traceback.print_exc()
+        # Return a speakable error — Sara will say this to the patient
+        return {
+            "result": "error",
+            "message": "I'm sorry, there was an issue saving your appointment. Please hold while I connect you to our team."
+        }
+
+
 # ============================================
 # RETELL AI WEBHOOK
+# Handles call_started and call_ended events.
+# extract_appointment() is kept as a fallback in case
+# the Retell tool didn't fire (e.g. tool config issue).
 # ============================================
 @app.post("/retell-webhook")
 async def retell_webhook(request: Request):
     try:
         body = await request.json()
-
         print(f"📨 FULL WEBHOOK: {json.dumps(body, indent=2, default=str)[:2000]}")
 
         event = (
@@ -325,7 +424,6 @@ async def retell_webhook(request: Request):
         elif event == "call_ended":
             call_id = call_data.get("call_id", "")
 
-            # Extract transcript from multiple possible fields
             raw_transcript = (
                 call_data.get("transcript") or
                 call_data.get("transcription") or
@@ -336,29 +434,21 @@ async def retell_webhook(request: Request):
 
             transcript = process_transcript(raw_transcript)
 
-            # Extract call analysis
             call_analysis = call_data.get("call_analysis", {})
             call_summary = call_analysis.get("call_summary", "")
             user_sentiment = call_analysis.get("user_sentiment", "")
-            call_successful = call_analysis.get(
-                "call_successful", False
-            )
+            call_successful = call_analysis.get("call_successful", False)
 
-            # Use summary as fallback if no transcript
             working_text = transcript or call_summary or ""
 
             duration = call_data.get("duration_ms", 0)
             duration_sec = duration // 1000 if duration else 0
-            duration_str = (
-                f"{duration_sec // 60}:{duration_sec % 60:02d}"
-            )
+            duration_str = f"{duration_sec // 60}:{duration_sec % 60:02d}"
 
             language = detect_language(working_text)
             outcome = detect_outcome(working_text)
 
-            # Override outcome if call was successful appointment
-            if (call_successful and
-                    "appointment" in call_summary.lower()):
+            if call_successful and "appointment" in call_summary.lower():
                 outcome = "Appointment Booked"
 
             print(f"📝 Transcript: {len(transcript)} chars")
@@ -383,34 +473,41 @@ async def retell_webhook(request: Request):
                 upsert=True
             )
 
-            appointment = extract_appointment(
-                working_text, call_id, call_data
-            )
-            if appointment:
-                await appointments_collection.insert_one(appointment)
-                await calls_collection.update_one(
-                    {"call_id": call_id},
-                    {"$set": {
-                        "appointment_booked": True,
-                        "appointment_id": appointment["appointment_id"]
-                    }}
-                )
-                await patients_collection.update_one(
-                    {"phone": appointment["patient_phone"]},
-                    {
-                        "$set": {
-                            "name": appointment["patient_name"],
-                            "phone": appointment["patient_phone"],
-                            "last_visit": datetime.now(),
+            # Check if Retell tool already booked this — don't double-book
+            existing_call = await calls_collection.find_one({"call_id": call_id})
+            already_booked = existing_call and existing_call.get("appointment_booked", False)
+
+            if not already_booked:
+                # Fallback: try to extract from transcript
+                print("⚠️ Retell tool did not book — attempting transcript fallback...")
+                appointment = extract_appointment(working_text, call_id, call_data)
+                if appointment:
+                    await appointments_collection.insert_one(appointment)
+                    await calls_collection.update_one(
+                        {"call_id": call_id},
+                        {"$set": {
+                            "appointment_booked": True,
+                            "appointment_id": appointment["appointment_id"]
+                        }}
+                    )
+                    await patients_collection.update_one(
+                        {"phone": appointment["patient_phone"]},
+                        {
+                            "$set": {
+                                "name": appointment["patient_name"],
+                                "phone": appointment["patient_phone"],
+                                "last_visit": datetime.now(),
+                            },
+                            "$push": {"appointments": appointment["appointment_id"]},
+                            "$inc": {"total_visits": 1}
                         },
-                        "$push": {
-                            "appointments": appointment["appointment_id"]
-                        },
-                        "$inc": {"total_visits": 1}
-                    },
-                    upsert=True
-                )
-                print(f"✅ Appointment saved: {appointment['appointment_id']}")
+                        upsert=True
+                    )
+                    print(f"✅ Fallback appointment saved: {appointment['appointment_id']}")
+                else:
+                    print("⚠️ No appointment keywords found in transcript — nothing saved")
+            else:
+                print(f"✅ Already booked via Retell tool — skipping fallback")
 
             print(f"✅ Call completed: {call_id}")
 
@@ -422,24 +519,21 @@ async def retell_webhook(request: Request):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
+
 # ============================================
 # HEALTH CHECK
 # ============================================
 @app.get("/")
 async def health():
-    return {
-        "status": "running",
-        "message": "Universal Hospital Backend"
-    }
+    return {"status": "running", "message": "Universal Hospital Backend"}
+
 
 # ============================================
 # DASHBOARD STATS
 # ============================================
 @app.get("/api/dashboard/stats")
 async def get_stats():
-    today = datetime.now().replace(
-        hour=0, minute=0, second=0, microsecond=0
-    )
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     return {
         "total_appointments": await appointments_collection.count_documents({}),
         "total_patients": await patients_collection.count_documents({}),
@@ -450,16 +544,11 @@ async def get_stats():
         "todays_calls": await calls_collection.count_documents(
             {"created_at": {"$gte": today}}
         ),
-        "confirmed": await appointments_collection.count_documents(
-            {"status": "confirmed"}
-        ),
-        "pending": await appointments_collection.count_documents(
-            {"status": "pending"}
-        ),
-        "cancelled": await appointments_collection.count_documents(
-            {"status": "cancelled"}
-        ),
+        "confirmed": await appointments_collection.count_documents({"status": "confirmed"}),
+        "pending": await appointments_collection.count_documents({"status": "pending"}),
+        "cancelled": await appointments_collection.count_documents({"status": "cancelled"}),
     }
+
 
 # ============================================
 # REAL CHART DATA
@@ -475,11 +564,8 @@ async def get_chart_data():
             {}, {"_id": 0, "created_at": 1, "outcome": 1}
         ).to_list(1000)
 
-        # Group by day of week
         days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
-        day_data = defaultdict(
-            lambda: {'calls': 0, 'appointments': 0, 'patients': 0}
-        )
+        day_data = defaultdict(lambda: {'calls': 0, 'appointments': 0, 'patients': 0})
 
         for apt in all_appointments:
             if apt.get('created_at'):
@@ -498,16 +584,16 @@ async def get_chart_data():
                 except Exception:
                     pass
 
-        chart_data = []
-        for day in days:
-            chart_data.append({
+        chart_data = [
+            {
                 'day': day,
                 'calls': day_data[day]['calls'],
                 'appointments': day_data[day]['appointments'],
                 'patients': day_data[day]['patients']
-            })
+            }
+            for day in days
+        ]
 
-        # Specialty breakdown
         specialty_counts = defaultdict(int)
         for apt in all_appointments:
             specialty = apt.get('specialty', 'General Medicine')
@@ -515,42 +601,34 @@ async def get_chart_data():
                 specialty_counts[specialty] += 1
 
         total_apts = sum(specialty_counts.values()) or 1
-        colors = [
-            '#6366f1', '#8b5cf6', '#a78bfa',
-            '#c4b5fd', '#e0e7ff'
-        ]
-        specialty_data = []
-        sorted_specialties = sorted(
-            specialty_counts.items(),
-            key=lambda x: x[1],
-            reverse=True
-        )[:5]
-
-        for i, (name, count) in enumerate(sorted_specialties):
-            specialty_data.append({
+        colors = ['#6366f1', '#8b5cf6', '#a78bfa', '#c4b5fd', '#e0e7ff']
+        specialty_data = [
+            {
                 'name': name,
                 'value': round((count / total_apts) * 100),
                 'color': colors[i % len(colors)]
-            })
+            }
+            for i, (name, count) in enumerate(
+                sorted(specialty_counts.items(), key=lambda x: x[1], reverse=True)[:5]
+            )
+        ]
 
-        # Outcome breakdown
         outcome_counts = defaultdict(int)
         for call in all_calls:
             outcome = call.get('outcome', 'Information Provided')
             if outcome and outcome != 'ongoing':
                 outcome_counts[outcome] += 1
 
-        total_calls = sum(outcome_counts.values()) or 1
-        outcome_colors = [
-            '#10b981', '#6366f1', '#ef4444', '#f59e0b'
-        ]
-        outcome_data = []
-        for i, (name, count) in enumerate(outcome_counts.items()):
-            outcome_data.append({
+        total_calls_count = sum(outcome_counts.values()) or 1
+        outcome_colors = ['#10b981', '#6366f1', '#ef4444', '#f59e0b']
+        outcome_data = [
+            {
                 'name': name,
-                'value': round((count / total_calls) * 100),
+                'value': round((count / total_calls_count) * 100),
                 'color': outcome_colors[i % len(outcome_colors)]
-            })
+            }
+            for i, (name, count) in enumerate(outcome_counts.items())
+        ]
 
         return {
             'chart_data': chart_data,
@@ -564,6 +642,7 @@ async def get_chart_data():
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
+
 # ============================================
 # APPOINTMENTS
 # ============================================
@@ -575,10 +654,7 @@ async def get_appointments(limit: int = 50, skip: int = 0):
     return {"appointments": appointments, "total": len(appointments)}
 
 @app.patch("/api/appointments/{appointment_id}")
-async def update_appointment(
-    appointment_id: str,
-    request: Request
-):
+async def update_appointment(appointment_id: str, request: Request):
     body = await request.json()
     result = await appointments_collection.update_one(
         {"appointment_id": appointment_id},
@@ -590,12 +666,11 @@ async def update_appointment(
 
 @app.delete("/api/appointments/{appointment_id}")
 async def delete_appointment(appointment_id: str):
-    result = await appointments_collection.delete_one(
-        {"appointment_id": appointment_id}
-    )
+    result = await appointments_collection.delete_one({"appointment_id": appointment_id})
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Appointment not found")
     return {"status": "deleted"}
+
 
 # ============================================
 # CALLS
@@ -609,12 +684,11 @@ async def get_calls(limit: int = 50, skip: int = 0):
 
 @app.get("/api/calls/{call_id}")
 async def get_call(call_id: str):
-    call = await calls_collection.find_one(
-        {"call_id": call_id}, {"_id": 0}
-    )
+    call = await calls_collection.find_one({"call_id": call_id}, {"_id": 0})
     if not call:
         raise HTTPException(status_code=404, detail="Call not found")
     return call
+
 
 # ============================================
 # PATIENTS
@@ -625,6 +699,7 @@ async def get_patients(limit: int = 50, skip: int = 0):
         {}, {"_id": 0}
     ).sort("last_visit", -1).skip(skip).limit(limit).to_list(limit)
     return {"patients": patients, "total": len(patients)}
+
 
 # ============================================
 # CREATE WEB CALL
@@ -639,15 +714,11 @@ async def create_web_call(request: Request):
             raise HTTPException(status_code=400, detail="agent_id is required")
 
         RETELL_API_KEY = os.getenv("RETELL_API_KEY")
-
         if not RETELL_API_KEY:
-            raise HTTPException(
-                status_code=500,
-                detail="RETELL_API_KEY not configured"
-            )
+            raise HTTPException(status_code=500, detail="RETELL_API_KEY not configured")
 
-        async with httpx.AsyncClient() as client:
-            response = await client.post(
+        async with httpx.AsyncClient() as http_client:
+            response = await http_client.post(
                 "https://api.retellai.com/v2/create-web-call",
                 headers={
                     "Authorization": f"Bearer {RETELL_API_KEY.strip()}",
@@ -671,6 +742,7 @@ async def create_web_call(request: Request):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
+
 # ============================================
 # CALENDAR ENDPOINTS
 # ============================================
@@ -683,9 +755,7 @@ async def get_available_slots(doctor_name: str, date: str):
             "status": {"$ne": "cancelled"}
         }, {"_id": 0, "time": 1}).to_list(100)
 
-        booked_times = [
-            apt["time"] for apt in booked if apt.get("time")
-        ]
+        booked_times = [apt["time"] for apt in booked if apt.get("time")]
 
         all_slots = []
         for hour in range(8, 20):
@@ -706,12 +776,8 @@ async def get_available_slots(doctor_name: str, date: str):
             "doctor": doctor_name,
             "date": date,
             "slots": all_slots,
-            "total_available": sum(
-                1 for s in all_slots if s["available"]
-            ),
-            "total_booked": sum(
-                1 for s in all_slots if not s["available"]
-            )
+            "total_available": sum(1 for s in all_slots if s["available"]),
+            "total_booked": sum(1 for s in all_slots if not s["available"])
         }
 
     except Exception as e:
@@ -724,10 +790,7 @@ async def get_available_slots(doctor_name: str, date: str):
 @app.get("/api/calendar/month")
 async def get_month_appointments(year: int, month: int):
     try:
-        all_apts = await appointments_collection.find(
-            {}, {"_id": 0}
-        ).to_list(1000)
-
+        all_apts = await appointments_collection.find({}, {"_id": 0}).to_list(1000)
         calendar_data = {}
 
         for apt in all_apts:
@@ -737,11 +800,8 @@ async def get_month_appointments(year: int, month: int):
 
             if date not in calendar_data:
                 calendar_data[date] = {
-                    "total": 0,
-                    "confirmed": 0,
-                    "pending": 0,
-                    "cancelled": 0,
-                    "appointments": []
+                    "total": 0, "confirmed": 0,
+                    "pending": 0, "cancelled": 0, "appointments": []
                 }
 
             calendar_data[date]["total"] += 1
@@ -758,11 +818,7 @@ async def get_month_appointments(year: int, month: int):
                 "status": apt.get("status")
             })
 
-        return {
-            "year": year,
-            "month": month,
-            "data": calendar_data
-        }
+        return {"year": year, "month": month, "data": calendar_data}
 
     except Exception as e:
         print(f"❌ Calendar month error: {e}")
@@ -775,28 +831,22 @@ async def get_month_appointments(year: int, month: int):
 async def book_appointment_with_check(request: Request):
     try:
         body = await request.json()
-        doctor_name = body.get("doctor_name")
-        date = body.get("date")
-        time = body.get("time")
-        patient_name = body.get("patient_name")
+        doctor_name   = body.get("doctor_name")
+        date          = body.get("date")
+        time          = body.get("time")
+        patient_name  = body.get("patient_name")
         patient_phone = body.get("patient_phone")
-        specialty = body.get("specialty", "General Medicine")
+        specialty     = body.get("specialty", "General Medicine")
 
-        # Validate required fields
         if not all([doctor_name, date, time, patient_name, patient_phone]):
-            raise HTTPException(
-                status_code=400,
-                detail="Missing required fields"
-            )
+            raise HTTPException(status_code=400, detail="Missing required fields")
 
-        # CHECK DOUBLE BOOKING
         existing = await appointments_collection.find_one({
             "doctor_name": doctor_name,
             "date": date,
             "time": time,
             "status": {"$ne": "cancelled"}
         })
-
         if existing:
             return {
                 "success": False,
@@ -818,7 +868,6 @@ async def book_appointment_with_check(request: Request):
         }
 
         await appointments_collection.insert_one(appointment)
-
         await patients_collection.update_one(
             {"phone": patient_phone},
             {
@@ -827,18 +876,13 @@ async def book_appointment_with_check(request: Request):
                     "phone": patient_phone,
                     "last_visit": datetime.now()
                 },
-                "$push": {
-                    "appointments": appointment["appointment_id"]
-                },
+                "$push": {"appointments": appointment["appointment_id"]},
                 "$inc": {"total_visits": 1}
             },
             upsert=True
         )
 
-        return {
-            "success": True,
-            "appointment": appointment
-        }
+        return {"success": True, "appointment": appointment}
 
     except HTTPException:
         raise
@@ -851,9 +895,4 @@ async def book_appointment_with_check(request: Request):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        app,
-        host="0.0.0.0",
-        port=8000,
-        reload=True
-    )
+    uvicorn.run(app, host="0.0.0.0", port=8000, reload=True)
