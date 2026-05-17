@@ -108,7 +108,7 @@ def extract_name(transcript: str) -> str:
             words = [w for w in words if w.lower() not in blacklist]
             if words:
                 return " ".join(words[:3])[:50]
-    return "Unknown Patient"
+    return ""
 
 def extract_phone(transcript: str, call_data: dict) -> str:
     if call_data.get("from_number"):
@@ -269,10 +269,11 @@ def extract_appointment(transcript: str, call_id: str, call_data: dict):
     ]
     if not any(kw in transcript_lower for kw in booking_keywords):
         return None
+    name = extract_name(transcript)
     return {
         "appointment_id": f"UH-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:4].upper()}",
         "call_id": call_id,
-        "patient_name": extract_name(transcript),
+        "patient_name": name or "Unknown Patient",
         "patient_phone": extract_phone(transcript, call_data),
         "doctor_name": extract_doctor(transcript),
         "specialty": extract_specialty(transcript),
@@ -402,14 +403,17 @@ async def retell_book(request: Request):
             upsert=True
         )
 
-        # Mark the call as booked
+        # ✅ FIX: Mark the call as booked AND update caller_name/caller_phone
         if call_id:
             await calls_collection.update_one(
                 {"call_id": call_id},
                 {"$set": {
                     "appointment_booked": True,
                     "appointment_id": appointment_id,
-                    "outcome": "Appointment Booked"
+                    "outcome": "Appointment Booked",
+                    # Write the name we got from Retell tool directly onto the call record
+                    "caller_name": patient_name,
+                    "caller_phone": patient_phone,
                 }}
             )
 
@@ -467,6 +471,7 @@ async def retell_webhook(request: Request):
                 "call_id": call_id,
                 "call_type": call_data.get("direction", "inbound"),
                 "caller_phone": call_data.get("from_number", ""),
+                "caller_name": "",   # ✅ FIX: always initialise so field exists in DB
                 "status": "ongoing",
                 "language": "unknown",
                 "outcome": "ongoing",
@@ -505,11 +510,28 @@ async def retell_webhook(request: Request):
             if call_successful and "appointment" in call_summary.lower():
                 outcome = "Appointment Booked"
 
+            # ✅ FIX: Extract caller_name and caller_phone from transcript
+            extracted_name = extract_name(working_text) if working_text else ""
+            extracted_phone = extract_phone(working_text, call_data)
+
             print(f"📝 Transcript: {len(transcript)} chars")
             print(f"📋 Summary: {call_summary[:100]}")
             print(f"🌐 Language: {language}")
             print(f"📊 Outcome: {outcome}")
             print(f"😊 Sentiment: {user_sentiment}")
+            print(f"👤 Extracted name: {extracted_name or '(none)'}")
+            print(f"📞 Extracted phone: {extracted_phone}")
+
+            # Check if Retell tool already booked this call — it will have set caller_name already
+            existing_call = await calls_collection.find_one({"call_id": call_id})
+            already_booked = existing_call and existing_call.get("appointment_booked", False)
+
+            # If already booked via Retell tool, the caller_name was set there — don't overwrite with empty
+            # If NOT booked, use whatever we extracted from the transcript
+            retell_tool_name = existing_call.get("caller_name", "") if existing_call else ""
+            final_caller_name = retell_tool_name or extracted_name or ""
+            final_caller_phone = existing_call.get("caller_phone", "") if existing_call else ""
+            final_caller_phone = final_caller_phone or extracted_phone or call_data.get("from_number", "")
 
             await calls_collection.update_one(
                 {"call_id": call_id},
@@ -522,14 +544,13 @@ async def retell_webhook(request: Request):
                     "call_successful": call_successful,
                     "language": language,
                     "outcome": outcome,
-                    "ended_at": datetime.now()
+                    "ended_at": datetime.now(),
+                    # ✅ FIX: always write caller_name and caller_phone on call_ended
+                    "caller_name": final_caller_name,
+                    "caller_phone": final_caller_phone,
                 }},
                 upsert=True
             )
-
-            # Check if Retell tool already booked this — don't double-book
-            existing_call = await calls_collection.find_one({"call_id": call_id})
-            already_booked = existing_call and existing_call.get("appointment_booked", False)
 
             if not already_booked:
                 # Fallback: try to extract from transcript
@@ -541,7 +562,10 @@ async def retell_webhook(request: Request):
                         {"call_id": call_id},
                         {"$set": {
                             "appointment_booked": True,
-                            "appointment_id": appointment["appointment_id"]
+                            "appointment_id": appointment["appointment_id"],
+                            # ✅ FIX: also update name from appointment if we got one
+                            "caller_name": appointment["patient_name"] or final_caller_name,
+                            "caller_phone": appointment["patient_phone"] or final_caller_phone,
                         }}
                     )
                     await patients_collection.update_one(
