@@ -77,20 +77,37 @@ def detect_outcome(transcript: str) -> str:
         return "Information Provided"
 
 def extract_name(transcript: str) -> str:
+    # Only search USER lines to avoid matching "I am Sara" as patient name
+    user_lines = []
+    for line in transcript.split("\n"):
+        stripped = line.strip()
+        lower = stripped.lower()
+        # Skip agent/Sara lines
+        if lower.startswith("agent:") or lower.startswith("sara:") or lower.startswith("assistant:"):
+            continue
+        cleaned = re.sub(r"^(user|patient|caller):\s*", "", stripped, flags=re.IGNORECASE)
+        user_lines.append(cleaned)
+
+    search_text = "\n".join(user_lines) if user_lines else transcript
+
     patterns = [
-        r'(?:my name is|name is|I am|I\'m|this is)\s+([A-Za-z]+(?:\s+[A-Za-z]+)*)',
-        r'(?:اسمي|أنا)\s+([^\n\.،]+)',
-        r'(?:mera naam|main hoon|naam hai)\s+([A-Za-z]+(?:\s+[A-Za-z]+)*)',
-        r'Name:\s*([A-Za-z]+(?:\s+[A-Za-z]+)*)',
+        r"(?:my name is|name is|I am|I\'m|this is)\s+([A-Za-z]+(?:\s+[A-Za-z]+)*)",
+        r"(?:اسمي|أنا)\s+([^\n\.،]+)",
+        r"(?:mera naam|main hoon|naam hai)\s+([A-Za-z]+(?:\s+[A-Za-z]+)*)",
+        r"Name:\s*([A-Za-z]+(?:\s+[A-Za-z]+)*)",
     ]
+    # Never return these as a patient name
+    blacklist = {"sara", "universal", "hospital", "agent", "assistant", "ai"}
+
     for pattern in patterns:
-        match = re.search(pattern, transcript, re.IGNORECASE)
+        match = re.search(pattern, search_text, re.IGNORECASE)
         if match:
             name = match.group(1).strip()
-            stop_words = ['the', 'a', 'an', 'is', 'are', 'was', 'going', 'to']
+            stop_words = ["the", "a", "an", "is", "are", "was", "going", "to"]
             words = [w for w in name.split() if w.lower() not in stop_words]
+            words = [w for w in words if w.lower() not in blacklist]
             if words:
-                return ' '.join(words[:3])[:50]
+                return " ".join(words[:3])[:50]
     return "Unknown Patient"
 
 def extract_phone(transcript: str, call_data: dict) -> str:
