@@ -530,27 +530,36 @@ async def retell_webhook(request: Request):
             print(f"📊 Outcome: {outcome}")
             print(f"😊 Sentiment: {user_sentiment}")
 
-            # Extract caller name from transcript for display in call logs
+            # Extract caller name from transcript
             blacklisted = {"unknown patient", "sara", "universal", "hospital", "agent", "assistant", ""}
             caller_name_extracted = extract_name(working_text)
             if caller_name_extracted.lower() in blacklisted:
                 caller_name_extracted = ""
 
+            # Also check if the Retell tool already saved a name via /api/retell-book
+            existing_call = await calls_collection.find_one({"call_id": call_id})
+            existing_name = existing_call.get("caller_name", "") if existing_call else ""
+
+            # Priority: retell-book name > transcript extraction
+            final_caller_name = existing_name or caller_name_extracted
+
+            update_fields = {
+                "status": "completed",
+                "duration": duration_str,
+                "transcript": transcript,
+                "call_summary": call_summary,
+                "user_sentiment": user_sentiment,
+                "call_successful": call_successful,
+                "language": language,
+                "outcome": outcome,
+                "ended_at": datetime.now(),
+            }
+            if final_caller_name:
+                update_fields["caller_name"] = final_caller_name
+
             await calls_collection.update_one(
                 {"call_id": call_id},
-                {"$set": {
-                    "status": "completed",
-                    "duration": duration_str,
-                    "transcript": transcript,
-                    "call_summary": call_summary,
-                    "user_sentiment": user_sentiment,
-                    "call_successful": call_successful,
-                    "language": language,
-                    "outcome": outcome,
-                    "ended_at": datetime.now(),
-                    # Only set caller_name if we found a real one and it isn't already set
-                    **({"caller_name": caller_name_extracted} if caller_name_extracted else {})
-                }},
+                {"$set": update_fields},
                 upsert=True
             )
 
@@ -815,7 +824,39 @@ async def get_calls(limit: int = 50, skip: int = 0):
     calls = await calls_collection.find(
         {}, {"_id": 0}
     ).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
-    return {"calls": calls, "total": len(calls)}
+
+    # Enrich calls: if caller_name is missing, pull from linked appointment
+    blacklisted = {"unknown patient", "sara", "universal", "hospital", "agent", "assistant", ""}
+    enriched = []
+    for call in calls:
+        # If no name, try to get it from the linked appointment
+        if not call.get("caller_name") or call.get("caller_name", "").lower() in blacklisted:
+            apt_id = call.get("appointment_id")
+            call_id = call.get("call_id")
+            apt = None
+            if apt_id:
+                apt = await appointments_collection.find_one(
+                    {"appointment_id": apt_id}, {"_id": 0, "patient_name": 1, "patient_phone": 1}
+                )
+            if not apt and call_id:
+                apt = await appointments_collection.find_one(
+                    {"call_id": call_id}, {"_id": 0, "patient_name": 1, "patient_phone": 1}
+                )
+            if apt:
+                name = apt.get("patient_name", "")
+                phone = apt.get("patient_phone", "")
+                if name and name.lower() not in blacklisted:
+                    call["caller_name"] = name
+                if phone and not call.get("caller_phone"):
+                    call["caller_phone"] = phone
+                    # Save back to DB so next fetch is faster
+                    await calls_collection.update_one(
+                        {"call_id": call.get("call_id")},
+                        {"$set": {"caller_name": call["caller_name"], "caller_phone": phone}}
+                    )
+        enriched.append(call)
+
+    return {"calls": enriched, "total": len(enriched)}
 
 @app.get("/api/calls/{call_id}")
 async def get_call(call_id: str):
