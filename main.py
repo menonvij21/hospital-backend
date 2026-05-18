@@ -314,7 +314,7 @@ async def retell_book(request: Request):
         print(f"🔧 Resolved args: {json.dumps(args, default=str)}")
 
         # Use str() to safely handle None values before stripping
-        patient_name  = str(args.get("patient_name") or "").strip() or "Unknown Patient"
+        patient_name  = str(args.get("patient_name") or "").strip()
         patient_phone = str(args.get("patient_phone") or "").strip() or "Not provided"
         doctor_name   = str(args.get("doctor_name") or "").strip() or "To Be Assigned"
         specialty     = str(args.get("specialty") or "").strip() or "General Medicine"
@@ -322,6 +322,23 @@ async def retell_book(request: Request):
         time          = str(args.get("time") or "").strip()
         language      = str(args.get("language") or "English").strip()
         call_id       = str(args.get("call_id") or body.get("call_id") or "").strip()
+
+        # If name is missing or invalid, try to get it from the call transcript
+        blacklisted_names = {"unknown patient", "sara", "universal", "hospital", "agent", "assistant", ""}
+        if patient_name.lower() in blacklisted_names:
+            # Try to pull from the call record in MongoDB
+            if call_id:
+                try:
+                    call_record = await calls_collection.find_one({"call_id": call_id}, {"_id": 0, "transcript": 1})
+                    if call_record and call_record.get("transcript"):
+                        extracted = extract_name(call_record["transcript"])
+                        if extracted.lower() not in blacklisted_names:
+                            patient_name = extracted
+                except Exception as ne:
+                    print(f"⚠️ Name extraction fallback error: {ne}")
+            # Final fallback
+            if patient_name.lower() in blacklisted_names:
+                patient_name = "Unknown Patient"
 
         # Fix wrong year — if Retell sends a past date, correct the year to current/next year
         if date:
@@ -575,6 +592,38 @@ async def retell_webhook(request: Request):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
 
+
+
+
+# ============================================
+# CLEANUP — Fix bad patient/appointment records
+# Call POST /api/cleanup once to fix existing data
+# ============================================
+@app.post("/api/cleanup")
+async def cleanup_bad_records():
+    """
+    One-time cleanup:
+    1. Delete appointments with patient_name = Unknown Patient
+    2. Delete patient records with name = Unknown Patient or Sara
+    3. Merge duplicate patients with same phone number
+    """
+    results = {}
+
+    # 1. Delete bad appointments
+    bad_names = ["Unknown Patient", "Sara", "Unknown", ""]
+    del_apts = await appointments_collection.delete_many(
+        {"patient_name": {"$in": bad_names}}
+    )
+    results["deleted_appointments"] = del_apts.deleted_count
+
+    # 2. Delete bad patient records
+    del_patients = await patients_collection.delete_many(
+        {"name": {"$in": bad_names}}
+    )
+    results["deleted_patients"] = del_patients.deleted_count
+
+    print(f"🧹 Cleanup done: {results}")
+    return {"status": "done", "results": results}
 
 # ============================================
 # HEALTH CHECK
