@@ -530,6 +530,12 @@ async def retell_webhook(request: Request):
             print(f"📊 Outcome: {outcome}")
             print(f"😊 Sentiment: {user_sentiment}")
 
+            # Extract caller name from transcript for display in call logs
+            blacklisted = {"unknown patient", "sara", "universal", "hospital", "agent", "assistant", ""}
+            caller_name_extracted = extract_name(working_text)
+            if caller_name_extracted.lower() in blacklisted:
+                caller_name_extracted = ""
+
             await calls_collection.update_one(
                 {"call_id": call_id},
                 {"$set": {
@@ -541,7 +547,9 @@ async def retell_webhook(request: Request):
                     "call_successful": call_successful,
                     "language": language,
                     "outcome": outcome,
-                    "ended_at": datetime.now()
+                    "ended_at": datetime.now(),
+                    # Only set caller_name if we found a real one and it isn't already set
+                    **({"caller_name": caller_name_extracted} if caller_name_extracted else {})
                 }},
                 upsert=True
             )
@@ -621,6 +629,28 @@ async def cleanup_bad_records():
         {"name": {"$in": bad_names}}
     )
     results["deleted_patients"] = del_patients.deleted_count
+
+    # 3. Backfill caller_name for existing calls that have a transcript but no name
+    blacklisted = {"unknown patient", "sara", "universal", "hospital", "agent", "assistant", ""}
+    all_calls = await calls_collection.find(
+        {"transcript": {"$exists": True, "$ne": ""}, "caller_name": {"$exists": False}},
+        {"_id": 0, "call_id": 1, "transcript": 1}
+    ).to_list(500)
+
+    backfilled = 0
+    for call in all_calls:
+        transcript = call.get("transcript", "")
+        if not transcript:
+            continue
+        name = extract_name(transcript)
+        if name and name.lower() not in blacklisted:
+            await calls_collection.update_one(
+                {"call_id": call["call_id"]},
+                {"$set": {"caller_name": name}}
+            )
+            backfilled += 1
+
+    results["backfilled_caller_names"] = backfilled
 
     print(f"🧹 Cleanup done: {results}")
     return {"status": "done", "results": results}
