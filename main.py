@@ -77,28 +77,35 @@ def detect_outcome(transcript: str) -> str:
         return "Information Provided"
 
 def extract_name(transcript: str) -> str:
-    # Only search USER lines to avoid matching "I am Sara" as patient name
+    if not transcript:
+        return ""
+
+    blacklist = {
+        "sara", "universal", "hospital", "agent", "assistant", "ai",
+        "hello", "hi", "yes", "no", "okay", "ok", "sure", "thanks",
+        "thank", "please", "sorry", "bye", "goodbye", "unknown", "patient",
+        "caller", "user", "human", "the", "a", "an"
+    }
+
+    # Build user-only lines (skip Sara/agent lines)
     user_lines = []
     for line in transcript.split("\n"):
         stripped = line.strip()
         lower = stripped.lower()
-        # Skip agent/Sara lines
         if lower.startswith("agent:") or lower.startswith("sara:") or lower.startswith("assistant:"):
             continue
-        cleaned = re.sub(r"^(user|patient|caller):\s*", "", stripped, flags=re.IGNORECASE)
+        cleaned = re.sub(r"^(user|patient|caller|human):\s*", "", stripped, flags=re.IGNORECASE)
         user_lines.append(cleaned)
 
     search_text = "\n".join(user_lines) if user_lines else transcript
 
+    # Pattern 1: explicit "my name is / I am / I'm" etc.
     patterns = [
         r"(?:my name is|name is|I am|I\'m|this is)\s+([A-Za-z]+(?:\s+[A-Za-z]+)*)",
         r"(?:اسمي|أنا)\s+([^\n\.،]+)",
         r"(?:mera naam|main hoon|naam hai)\s+([A-Za-z]+(?:\s+[A-Za-z]+)*)",
         r"Name:\s*([A-Za-z]+(?:\s+[A-Za-z]+)*)",
     ]
-    # Never return these as a patient name
-    blacklist = {"sara", "universal", "hospital", "agent", "assistant", "ai"}
-
     for pattern in patterns:
         match = re.search(pattern, search_text, re.IGNORECASE)
         if match:
@@ -108,7 +115,44 @@ def extract_name(transcript: str) -> str:
             words = [w for w in words if w.lower() not in blacklist]
             if words:
                 return " ".join(words[:3])[:50]
-    return "Unknown Patient"
+
+    # Pattern 2: plain name reply after Sara asks for name
+    # Catches: Sara: "May I have your full name?" → User: "Sujit Kumar."
+    name_request_phrases = [
+        "your full name", "your name please", "may i have your name",
+        "tell me your name", "what is your name", "what's your name",
+        "can i get your name", "could you tell me your name",
+        "could you please tell me your full name", "could you please tell me your name",
+        "your good name", "may i know your name", "please tell me your name",
+    ]
+    lines = transcript.split("\n")
+    for i, line in enumerate(lines):
+        lower = line.lower()
+        is_sara = any(lower.strip().startswith(p) for p in ["agent:", "sara:", "assistant:"])
+        if not is_sara:
+            continue
+        if not any(phrase in lower for phrase in name_request_phrases):
+            continue
+        # Sara just asked for a name — check the next few user lines
+        for j in range(i + 1, min(i + 6, len(lines))):
+            next_line = lines[j].strip()
+            if not next_line:
+                continue
+            next_lower = next_line.lower()
+            # Stop if Sara speaks again
+            if any(next_lower.startswith(p) for p in ["agent:", "sara:", "assistant:"]):
+                break
+            # Strip role prefix
+            clean = re.sub(r"^(user|patient|caller|human):\s*", "", next_line, flags=re.IGNORECASE)
+            clean = clean.strip().rstrip(".,!?")
+            words = clean.split()
+            # A name is 1-4 words, letters only, not blacklisted
+            if 1 <= len(words) <= 4:
+                if all(re.match(r'^[A-Za-z]+$', w) for w in words):
+                    if not any(w.lower() in blacklist for w in words):
+                        return " ".join(words)[:50]
+
+    return ""
 
 def extract_phone(transcript: str, call_data: dict) -> str:
     if call_data.get("from_number"):
@@ -272,7 +316,7 @@ def extract_appointment(transcript: str, call_id: str, call_data: dict):
     return {
         "appointment_id": f"UH-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:4].upper()}",
         "call_id": call_id,
-        "patient_name": extract_name(transcript),
+        "patient_name": extract_name(transcript) or "Unknown Patient",
         "patient_phone": extract_phone(transcript, call_data),
         "doctor_name": extract_doctor(transcript),
         "specialty": extract_specialty(transcript),
@@ -287,23 +331,15 @@ def extract_appointment(transcript: str, call_id: str, call_data: dict):
 
 # ============================================
 # RETELL CUSTOM TOOL — BOOK APPOINTMENT
-# Called by Sara MID-CALL the moment patient confirms.
-# Sara passes structured data directly — no parsing needed.
-# Set this URL in Retell dashboard under Agent → Tools.
 # ============================================
 @app.post("/api/retell-book")
 async def retell_book(request: Request):
     try:
         body = await request.json()
 
-        # Log everything so we can see exactly what Retell sends
         print(f"🔧 Retell tool RAW BODY: {json.dumps(body, default=str)}")
         print(f"🔧 Body keys: {list(body.keys())}")
 
-        # Retell can send args in multiple formats:
-        # Format 1: { "args": { "patient_name": ... } }
-        # Format 2: { "patient_name": ... }  (flat)
-        # Format 3: { "parameters": { ... } }
         args = (
             body.get("args") or
             body.get("parameters") or
@@ -313,7 +349,6 @@ async def retell_book(request: Request):
 
         print(f"🔧 Resolved args: {json.dumps(args, default=str)}")
 
-        # Use str() to safely handle None values before stripping
         patient_name  = str(args.get("patient_name") or "").strip()
         patient_phone = str(args.get("patient_phone") or "").strip() or "Not provided"
         doctor_name   = str(args.get("doctor_name") or "").strip() or "To Be Assigned"
@@ -323,31 +358,28 @@ async def retell_book(request: Request):
         language      = str(args.get("language") or "English").strip()
         call_id       = str(args.get("call_id") or body.get("call_id") or "").strip()
 
-        # If name is missing or invalid, try to get it from the call transcript
+        # If name is missing/invalid, try to extract from transcript in DB
         blacklisted_names = {"unknown patient", "sara", "universal", "hospital", "agent", "assistant", ""}
         if patient_name.lower() in blacklisted_names:
-            # Try to pull from the call record in MongoDB
             if call_id:
                 try:
                     call_record = await calls_collection.find_one({"call_id": call_id}, {"_id": 0, "transcript": 1})
                     if call_record and call_record.get("transcript"):
                         extracted = extract_name(call_record["transcript"])
-                        if extracted.lower() not in blacklisted_names:
+                        if extracted and extracted.lower() not in blacklisted_names:
                             patient_name = extracted
                 except Exception as ne:
                     print(f"⚠️ Name extraction fallback error: {ne}")
-            # Final fallback
             if patient_name.lower() in blacklisted_names:
                 patient_name = "Unknown Patient"
 
-        # Fix wrong year — if Retell sends a past date, correct the year to current/next year
+        # Fix wrong year
         if date:
             try:
                 from datetime import timedelta
                 parsed = datetime.strptime(date, "%Y-%m-%d")
                 today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
                 if parsed < today:
-                    # Move to same month/day in current or next year
                     corrected = parsed.replace(year=today.year)
                     if corrected < today:
                         corrected = parsed.replace(year=today.year + 1)
@@ -363,7 +395,6 @@ async def retell_book(request: Request):
             if m:
                 time = f"{m.group(1)}:00 {m.group(2).upper()}"
 
-        # Validate required fields — Sara will read the message aloud
         if not date:
             return {"result": "missing_info", "message": "I need the appointment date to complete the booking."}
         if not time:
@@ -371,7 +402,6 @@ async def retell_book(request: Request):
         if not doctor_name or doctor_name == "To Be Assigned":
             return {"result": "missing_info", "message": "Please confirm which doctor you would like to see."}
 
-        # Check for double booking
         existing = await appointments_collection.find_one({
             "doctor_name": doctor_name,
             "date": date,
@@ -384,7 +414,6 @@ async def retell_book(request: Request):
                 "message": f"I'm sorry, that slot is already taken. Could you please choose a different time?"
             }
 
-        # Create the appointment
         appointment_id = f"UH-{datetime.now().strftime('%Y%m%d')}-{str(uuid.uuid4())[:4].upper()}"
         appointment = {
             "appointment_id": appointment_id,
@@ -398,13 +427,12 @@ async def retell_book(request: Request):
             "language": language,
             "status": "confirmed",
             "call_type": "inbound",
-            "booked_via": "retell_tool",   # so you can distinguish from manual bookings
+            "booked_via": "retell_tool",
             "created_at": datetime.now()
         }
 
         await appointments_collection.insert_one(appointment)
 
-        # Upsert patient record
         await patients_collection.update_one(
             {"phone": patient_phone},
             {
@@ -419,7 +447,6 @@ async def retell_book(request: Request):
             upsert=True
         )
 
-        # Mark the call as booked and store patient details so dashboard can show name
         if call_id:
             await calls_collection.update_one(
                 {"call_id": call_id},
@@ -434,7 +461,6 @@ async def retell_book(request: Request):
 
         print(f"✅ Retell tool booked: {appointment_id} — {patient_name} with {doctor_name} on {date} at {time}")
 
-        # This message is read aloud by Sara to the patient
         return {
             "result": "success",
             "appointment_id": appointment_id,
@@ -445,7 +471,6 @@ async def retell_book(request: Request):
         print(f"❌ Retell tool error: {e}")
         import traceback
         traceback.print_exc()
-        # Return a speakable error — Sara will say this to the patient
         return {
             "result": "error",
             "message": "I'm sorry, there was an issue saving your appointment. Please hold while I connect you to our team."
@@ -454,9 +479,6 @@ async def retell_book(request: Request):
 
 # ============================================
 # RETELL AI WEBHOOK
-# Handles call_started and call_ended events.
-# extract_appointment() is kept as a fallback in case
-# the Retell tool didn't fire (e.g. tool config issue).
 # ============================================
 @app.post("/retell-webhook")
 async def retell_webhook(request: Request):
@@ -486,6 +508,7 @@ async def retell_webhook(request: Request):
                 "call_id": call_id,
                 "call_type": call_data.get("direction", "inbound"),
                 "caller_phone": call_data.get("from_number", ""),
+                "caller_name": "",
                 "status": "ongoing",
                 "language": "unknown",
                 "outcome": "ongoing",
@@ -524,24 +547,27 @@ async def retell_webhook(request: Request):
             if call_successful and "appointment" in call_summary.lower():
                 outcome = "Appointment Booked"
 
+            # Extract name from transcript
+            BAD_NAMES = {"unknown patient", "sara", "universal", "hospital", "agent", "assistant", ""}
+            caller_name_extracted = extract_name(working_text)
+            if caller_name_extracted.lower() in BAD_NAMES:
+                caller_name_extracted = ""
+
+            # Check if Retell tool already saved a name
+            existing_call = await calls_collection.find_one({"call_id": call_id})
+            existing_name = (existing_call.get("caller_name") or "") if existing_call else ""
+            if existing_name.lower() in BAD_NAMES:
+                existing_name = ""
+
+            # Priority: retell-book name > transcript extraction
+            final_caller_name = existing_name or caller_name_extracted
+
             print(f"📝 Transcript: {len(transcript)} chars")
             print(f"📋 Summary: {call_summary[:100]}")
             print(f"🌐 Language: {language}")
             print(f"📊 Outcome: {outcome}")
             print(f"😊 Sentiment: {user_sentiment}")
-
-            # Extract caller name from transcript
-            blacklisted = {"unknown patient", "sara", "universal", "hospital", "agent", "assistant", ""}
-            caller_name_extracted = extract_name(working_text)
-            if caller_name_extracted.lower() in blacklisted:
-                caller_name_extracted = ""
-
-            # Also check if the Retell tool already saved a name via /api/retell-book
-            existing_call = await calls_collection.find_one({"call_id": call_id})
-            existing_name = existing_call.get("caller_name", "") if existing_call else ""
-
-            # Priority: retell-book name > transcript extraction
-            final_caller_name = existing_name or caller_name_extracted
+            print(f"👤 Caller name: {final_caller_name or '(none found)'}")
 
             update_fields = {
                 "status": "completed",
@@ -563,12 +589,11 @@ async def retell_webhook(request: Request):
                 upsert=True
             )
 
-            # Check if Retell tool already booked this — don't double-book
+            # Check if already booked — don't double-book
             existing_call = await calls_collection.find_one({"call_id": call_id})
             already_booked = existing_call and existing_call.get("appointment_booked", False)
 
             if not already_booked:
-                # Fallback: try to extract from transcript
                 print("⚠️ Retell tool did not book — attempting transcript fallback...")
                 appointment = extract_appointment(working_text, call_id, call_data)
                 if appointment:
@@ -610,59 +635,98 @@ async def retell_webhook(request: Request):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-
-
 # ============================================
-# CLEANUP — Fix bad patient/appointment records
-# Call POST /api/cleanup once to fix existing data
+# CLEANUP — Fix existing Unknown Caller records
+# POST /api/cleanup — safe to call multiple times
 # ============================================
 @app.post("/api/cleanup")
 async def cleanup_bad_records():
-    """
-    One-time cleanup:
-    1. Delete appointments with patient_name = Unknown Patient
-    2. Delete patient records with name = Unknown Patient or Sara
-    3. Merge duplicate patients with same phone number
-    """
     results = {}
+    BAD_NAMES = {"unknown patient", "unknown caller", "sara", "universal",
+                 "hospital", "agent", "assistant", "ai", "unknown", ""}
 
-    # 1. Delete bad appointments
-    bad_names = ["Unknown Patient", "Sara", "Unknown", ""]
+    # 1. Delete appointments with bad patient names
+    bad_name_list = ["Unknown Patient", "Sara", "Unknown", ""]
     del_apts = await appointments_collection.delete_many(
-        {"patient_name": {"$in": bad_names}}
+        {"patient_name": {"$in": bad_name_list}}
     )
     results["deleted_appointments"] = del_apts.deleted_count
 
     # 2. Delete bad patient records
     del_patients = await patients_collection.delete_many(
-        {"name": {"$in": bad_names}}
+        {"name": {"$in": bad_name_list}}
     )
     results["deleted_patients"] = del_patients.deleted_count
 
-    # 3. Backfill caller_name for existing calls that have a transcript but no name
-    blacklisted = {"unknown patient", "sara", "universal", "hospital", "agent", "assistant", ""}
-    all_calls = await calls_collection.find(
-        {"transcript": {"$exists": True, "$ne": ""}, "caller_name": {"$exists": False}},
-        {"_id": 0, "call_id": 1, "transcript": 1}
-    ).to_list(500)
-
+    # 3. Backfill caller_name for ALL calls missing a good name
+    all_calls = await calls_collection.find({}, {"_id": 0}).to_list(10000)
     backfilled = 0
+    from_apt = 0
+    from_transcript = 0
+
     for call in all_calls:
-        transcript = call.get("transcript", "")
-        if not transcript:
+        call_id  = call.get("call_id", "")
+        apt_id   = call.get("appointment_id", "")
+        existing = (call.get("caller_name") or "").strip().lower()
+
+        # Skip if already has a good name
+        if existing and existing not in BAD_NAMES:
             continue
-        name = extract_name(transcript)
-        if name and name.lower() not in blacklisted:
+
+        new_name = ""
+
+        # Priority 1: linked appointment (most reliable)
+        apt = None
+        if apt_id:
+            apt = await appointments_collection.find_one(
+                {"appointment_id": apt_id},
+                {"_id": 0, "patient_name": 1, "patient_phone": 1}
+            )
+        if not apt and call_id:
+            apt = await appointments_collection.find_one(
+                {"call_id": call_id},
+                {"_id": 0, "patient_name": 1, "patient_phone": 1}
+            )
+        if apt:
+            name = (apt.get("patient_name") or "").strip()
+            if name and name.lower() not in BAD_NAMES:
+                new_name = name
+                from_apt += 1
+            # Also fix phone if missing
+            phone = (apt.get("patient_phone") or "").strip()
+            if phone and not (call.get("caller_phone") or "").strip():
+                await calls_collection.update_one(
+                    {"call_id": call_id},
+                    {"$set": {"caller_phone": phone}}
+                )
+
+        # Priority 2: extract from transcript using improved regex
+        if not new_name:
+            transcript = (call.get("transcript") or "").strip()
+            if transcript:
+                extracted = extract_name(transcript)
+                if extracted and extracted.lower() not in BAD_NAMES:
+                    new_name = extracted
+                    from_transcript += 1
+
+        # Write back to DB
+        if new_name:
             await calls_collection.update_one(
-                {"call_id": call["call_id"]},
-                {"$set": {"caller_name": name}}
+                {"call_id": call_id},
+                {"$set": {"caller_name": new_name}}
             )
             backfilled += 1
+            print(f"  ✅ {call_id[-12:]} → {new_name}")
+        else:
+            print(f"  ⚠️  {call_id[-12:]} → no name found")
 
     results["backfilled_caller_names"] = backfilled
+    results["from_appointment"] = from_apt
+    results["from_transcript"] = from_transcript
 
     print(f"🧹 Cleanup done: {results}")
     return {"status": "done", "results": results}
+
 
 # ============================================
 # HEALTH CHECK
@@ -826,33 +890,39 @@ async def get_calls(limit: int = 50, skip: int = 0):
     ).sort("created_at", -1).skip(skip).limit(limit).to_list(limit)
 
     # Enrich calls: if caller_name is missing, pull from linked appointment
-    blacklisted = {"unknown patient", "sara", "universal", "hospital", "agent", "assistant", ""}
+    BAD_NAMES = {"unknown patient", "unknown caller", "sara", "universal",
+                 "hospital", "agent", "assistant", "ai", "unknown", ""}
     enriched = []
     for call in calls:
-        # If no name, try to get it from the linked appointment
-        if not call.get("caller_name") or call.get("caller_name", "").lower() in blacklisted:
-            apt_id = call.get("appointment_id")
+        existing = (call.get("caller_name") or "").strip().lower()
+        if not existing or existing in BAD_NAMES:
+            apt_id  = call.get("appointment_id")
             call_id = call.get("call_id")
             apt = None
             if apt_id:
                 apt = await appointments_collection.find_one(
-                    {"appointment_id": apt_id}, {"_id": 0, "patient_name": 1, "patient_phone": 1}
+                    {"appointment_id": apt_id},
+                    {"_id": 0, "patient_name": 1, "patient_phone": 1}
                 )
             if not apt and call_id:
                 apt = await appointments_collection.find_one(
-                    {"call_id": call_id}, {"_id": 0, "patient_name": 1, "patient_phone": 1}
+                    {"call_id": call_id},
+                    {"_id": 0, "patient_name": 1, "patient_phone": 1}
                 )
             if apt:
-                name = apt.get("patient_name", "")
-                phone = apt.get("patient_phone", "")
-                if name and name.lower() not in blacklisted:
+                name  = (apt.get("patient_name") or "").strip()
+                phone = (apt.get("patient_phone") or "").strip()
+                if name and name.lower() not in BAD_NAMES:
                     call["caller_name"] = name
-                if phone and not call.get("caller_phone"):
-                    call["caller_phone"] = phone
-                    # Save back to DB so next fetch is faster
                     await calls_collection.update_one(
                         {"call_id": call.get("call_id")},
-                        {"$set": {"caller_name": call["caller_name"], "caller_phone": phone}}
+                        {"$set": {"caller_name": name}}
+                    )
+                if phone and not (call.get("caller_phone") or "").strip():
+                    call["caller_phone"] = phone
+                    await calls_collection.update_one(
+                        {"call_id": call.get("call_id")},
+                        {"$set": {"caller_phone": phone}}
                     )
         enriched.append(call)
 
